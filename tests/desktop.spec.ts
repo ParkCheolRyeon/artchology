@@ -1,9 +1,16 @@
-import { test, expect, _electron as electron, type ElectronApplication } from '@playwright/test'
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import {
+  test,
+  expect,
+  _electron as electron,
+  type ElectronApplication,
+  type Page
+} from '@playwright/test'
+import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
-async function launch(directory: string): Promise<ElectronApplication> {
+async function launch(): Promise<ElectronApplication> {
+  const directory = await mkdtemp(join(tmpdir(), 'weetory-ui-'))
   return electron.launch({
     args: [resolve('out/main/index.js')],
     env: {
@@ -14,297 +21,217 @@ async function launch(directory: string): Promise<ElectronApplication> {
     }
   })
 }
+async function menu(page: Page, name: string): Promise<void> {
+  await page
+    .getByRole('navigation', { name: '주 메뉴', exact: true })
+    .getByRole('button', { name, exact: true })
+    .click()
+}
+async function sub(page: Page, name: string): Promise<void> {
+  await page
+    .getByRole('navigation', { name: '메뉴별 하위 목록' })
+    .getByRole('button', { name, exact: true })
+    .click()
+}
+function dateAfter(value: string, days: number): string {
+  const d = new Date(value + 'T12:00:00')
+  d.setDate(d.getDate() + days)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
-test('학생 등록 → 상담 저장 → 그림 저장 → 재시작 후 보존', async () => {
-  const testInfo = test.info()
-  const directory = await mkdtemp(join(tmpdir(), 'artchology-e2e-'))
-  let app = await launch(directory)
-  try {
-    let page = await app.firstWindow()
-    const errors: string[] = []
-    page.on('pageerror', (error) => errors.push(error.message))
-    await expect(page.getByRole('heading', { name: '마음을 살피는 하루의 시작' })).toBeVisible()
-    await page.screenshot({ path: testInfo.outputPath('home.png') })
-    await page
-      .getByRole('navigation', { name: '주 메뉴' })
-      .getByRole('button', { name: '학생 관리' })
-      .click()
-    await page.getByRole('button', { name: '학생 등록', exact: true }).click()
-    const studentDialog = page.getByRole('dialog')
-    await studentDialog.getByLabel('학생 이름').fill('테스트학생')
-    await studentDialog.getByLabel('상담 배경 및 메모').fill('재시작 후 보존을 확인하는 가상 기록')
-    await studentDialog.getByRole('button', { name: '학생 등록', exact: true }).click()
-    await expect(studentDialog).toHaveCount(0)
-    await page.getByRole('textbox', { name: '학생 이름 검색', exact: true }).fill('테스트학생')
-    await page.getByRole('button', { name: '테스트학생', exact: true }).click()
-    await expect(page.getByRole('heading', { name: '테스트학생', exact: true })).toBeVisible()
-    await page
-      .locator('.profile-heading')
-      .getByRole('button', { name: '상담 기록', exact: true })
-      .click()
-    const sessionDialog = page.getByRole('dialog')
-    await sessionDialog.getByLabel('상담 제목').fill('나의 첫 상담')
-    await sessionDialog
-      .getByLabel('상담 내용')
-      .fill('오늘은 친구와 나눈 이야기를 그림으로 표현했습니다.')
-    await sessionDialog.getByRole('button', { name: '상담 저장' }).click()
-    await expect(sessionDialog).toHaveCount(0)
-    await expect(page.getByRole('button', { name: '나의 첫 상담' })).toBeVisible()
-    await page.screenshot({ path: testInfo.outputPath('student-detail.png') })
-    await page.getByRole('button', { name: '그림으로 이야기하기' }).click()
-    await page.getByRole('button', { name: /오늘의 마음 날씨/ }).click()
-    const canvas = page.getByLabel('마음 그리기 캔버스')
-    const box = await canvas.boundingBox()
-    if (!box) throw new Error('Drawing canvas was not rendered')
-    await page.mouse.move(box.x + 80, box.y + 80)
-    await page.mouse.down()
-    await page.mouse.move(box.x + 150, box.y + 130, { steps: 8 })
-    await page.mouse.up()
-    await page.getByLabel('학생의 설명과 관찰 메모').fill('맑은 하늘 같은 기분이라고 이야기했어요.')
-    await page.screenshot({ path: testInfo.outputPath('drawing.png') })
-    await page.getByRole('button', { name: '활동 저장' }).click()
-    await expect(page.getByRole('heading', { name: '테스트학생', exact: true })).toBeVisible()
-    await page.getByRole('button', { name: /마음 그림/ }).click()
-    await expect(page.getByAltText('테스트학생의 오늘의 마음 날씨')).toBeVisible()
-    // Invalid IPC values must not create records.
-    const invalid = await page.evaluate(() =>
-      window.api.saveStudent({
-        name: '',
-        grade: 0,
-        classroom: 1,
-        number: 1,
-        category: '또래 관계',
-        status: '진행 중',
-        concern: '',
-        guardian: '',
-        phone: ''
-      })
-    )
-    expect(invalid.ok).toBe(false)
-    for (const name of ['통계', '보고서']) {
-      await page
-        .getByRole('navigation', { name: '주 메뉴' })
-        .getByRole('button', { name, exact: true })
-        .click()
-      await expect(page.locator('h1')).toBeVisible()
-    }
-    await page.getByRole('button', { name: '설정', exact: true }).click()
-    await page.getByLabel('학교 이름').fill('테스트 초등학교')
-    await page.getByRole('button', { name: '변경 저장' }).click()
-    await expect(page.locator('.school-block')).toContainText('테스트 초등학교')
-    const exportPath = join(directory, 'export.csv')
-    await app.evaluate(({ dialog }, path) => {
-      dialog.showSaveDialog = async () => ({ canceled: false, filePath: path })
-    }, exportPath)
-    await page
-      .getByRole('navigation', { name: '주 메뉴' })
-      .getByRole('button', { name: '보고서', exact: true })
-      .click()
-    await page.getByRole('button', { name: 'CSV 내보내기' }).click()
-    await expect(page.getByRole('status')).toContainText('파일을 저장했습니다.')
-    expect(await readFile(exportPath, 'utf8')).toContain('나의 첫 상담')
-    await page
-      .getByRole('navigation', { name: '주 메뉴' })
-      .getByRole('button', { name: '홈', exact: true })
-      .click()
-    await page.getByRole('button', { name: '일정 추가' }).click()
-    await expect(page.getByRole('dialog').getByLabel('상담 상태')).toHaveValue('예정')
-    await page.getByRole('dialog').getByRole('button', { name: '취소', exact: true }).click()
-    expect(errors).toEqual([])
-    await app.close()
-    app = await launch(directory)
-    page = await app.firstWindow()
-    await expect(page.getByRole('heading', { name: '마음을 살피는 하루의 시작' })).toBeVisible()
-    const stored = await page.evaluate(() => window.api.load())
-    expect(stored.ok).toBe(true)
-    if (!stored.ok) throw new Error(stored.error)
-    expect(stored.data.students.filter((student) => student.name === '테스트학생')).toHaveLength(1)
-    expect(stored.data.sessions.some((session) => session.title === '나의 첫 상담')).toBe(true)
-    expect(stored.data.drawings).toHaveLength(1)
-    expect(stored.data.settings.school).toBe('테스트 초등학교')
-  } finally {
-    await app.close()
-  }
-})
-
-test('손상된 DB를 예시 데이터로 덮어쓰지 않는다', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'artchology-corrupt-'))
-  const path = join(directory, 'artchology-demo.json')
-  await writeFile(path, '{broken')
-  const app = await launch(directory)
-  try {
-    const page = await app.firstWindow()
-    await expect(page.getByRole('heading', { name: '데이터를 불러오지 못했어요' })).toBeVisible()
-    expect(await readFile(path, 'utf8')).toBe('{broken')
-  } finally {
-    await app.close()
-  }
-})
-
-test('메뉴 상세 이동, 필터 보존, 상담 수정과 다음 예약', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'artchology-depths-'))
-  const app = await launch(directory)
+test('원본 메뉴와 모든 하위 화면 탐색', async () => {
+  const app = await launch()
   try {
     const page = await app.firstWindow()
     const errors: string[] = []
-    page.on('pageerror', (error) => errors.push(error.message))
-    await expect(page.locator('h1')).toContainText('마음을 살피는 하루의 시작')
-    const menu = page.getByRole('navigation', { name: '주 메뉴' })
-    await menu.getByRole('button', { name: '학생 관리', exact: true }).click()
-    await page.getByRole('textbox', { name: '학생 이름 검색', exact: true }).fill('김하늘')
-    await page.getByRole('button', { name: '김하늘', exact: true }).click()
-    await page
-      .getByRole('navigation', { name: '학생 상세 메뉴' })
-      .getByRole('button', { name: '기본 정보', exact: true })
-      .click()
-    await expect(page.getByRole('heading', { name: '학생 기본 정보' })).toBeVisible()
-    await page.getByRole('button', { name: '학생 목록', exact: true }).click()
-    await expect(page.getByRole('textbox', { name: '학생 이름 검색', exact: true })).toHaveValue(
-      '김하늘'
-    )
-    await menu.getByRole('button', { name: '상담 기록', exact: true }).click()
-    await page.getByRole('textbox', { name: '학생 이름 또는 상담 제목 검색' }).fill('김하늘')
-    await page.locator('.session-list-row').first().click()
-    await expect(page.getByRole('button', { name: '기록 수정' })).toBeVisible()
-    await page.getByRole('button', { name: '기록 수정' }).click()
-    await page.getByRole('dialog').getByLabel('상담 제목').fill('깊이 화면에서 수정한 상담')
-    await page.getByRole('dialog').getByRole('button', { name: '상담 저장' }).click()
-    await expect(page.getByRole('heading', { name: '깊이 화면에서 수정한 상담' })).toBeVisible()
-    await page.getByRole('button', { name: '다음 상담 예약' }).click()
+    page.on('pageerror', (e) => errors.push(e.message))
     await expect(
-      page.getByRole('dialog').getByRole('combobox', { name: '학생 *', exact: true })
-    ).toHaveValue('demo-student-1')
-    await expect(page.getByRole('dialog').getByLabel('상담 상태')).toHaveValue('예정')
-    await page.getByRole('dialog').getByRole('button', { name: '취소', exact: true }).click()
-    await page
-      .getByRole('navigation', { name: '상담 상세 메뉴' })
-      .getByRole('button', { name: '학생 상담 이력' })
-      .click()
-    await expect(page.locator('main').getByRole('table')).toBeVisible()
-    await page.screenshot({ path: test.info().outputPath('record-detail.png') })
-    await page.getByRole('button', { name: '이전 화면으로' }).click()
-    await expect(page.getByRole('textbox', { name: '학생 이름 또는 상담 제목 검색' })).toHaveValue(
-      '김하늘'
-    )
-    await page
-      .getByRole('navigation', { name: '상담 기록 보기' })
-      .getByRole('button', { name: '달력', exact: true })
-      .click()
-    await expect(page.locator('.calendar')).toBeVisible()
-    await menu.getByRole('button', { name: '통계', exact: true }).click()
-    await page
-      .getByRole('navigation', { name: '통계 하위 메뉴' })
-      .getByRole('button', { name: '상담 분류' })
-      .click()
-    await page.locator('.bar-button').first().click()
-    await expect(page.getByRole('button', { name: '통계로 돌아가기' })).toBeVisible()
-    await page.locator('tbody .text-link').first().click()
-    await expect(page.getByRole('button', { name: '기록 수정' })).toBeVisible()
-    await page.getByRole('button', { name: '이전 화면으로' }).click()
-    await expect(page.getByRole('button', { name: '통계로 돌아가기' })).toBeVisible()
-    await page.getByRole('button', { name: '통계로 돌아가기' }).click()
-    for (const name of ['시간 흐름', '학생 현황', '요약']) {
-      await page
-        .getByRole('navigation', { name: '통계 하위 메뉴' })
-        .getByRole('button', { name, exact: true })
-        .click()
-      await expect(page.locator('h1')).toHaveText('상담 통계')
+      page.getByRole('navigation', { name: '주 메뉴', exact: true }).getByRole('button')
+    ).toHaveCount(7)
+    for (const name of ['홈', '사례 관리', '학생 관리', '통계', '보고서', '공지사항', '설정']) {
+      await menu(page, name)
+      const labels = await page
+        .getByRole('navigation', { name: '메뉴별 하위 목록' })
+        .getByRole('button')
+        .allTextContents()
+      for (const label of labels) {
+        if (['학생 등록', '명렬표 가져오기', '학생 정보 요청'].includes(label)) continue
+        await page
+          .getByRole('navigation', { name: '메뉴별 하위 목록' })
+          .getByRole('button')
+          .filter({ hasText: label })
+          .click()
+        await expect(page.locator('main')).not.toBeEmpty()
+        expect(await page.locator('main').innerText()).not.toContain('undefined')
+        await expect(page.getByRole('dialog')).toHaveCount(0)
+      }
     }
-    await menu.getByRole('button', { name: '마음 그리기', exact: true }).click()
-    await page.getByRole('button', { name: '작품 보관함', exact: true }).click()
-    await expect(page.getByRole('heading', { name: '아직 마음 그림이 없어요' })).toBeVisible()
+    await menu(page, '홈')
+    await sub(page, '캘린더')
+    await page.screenshot({ path: test.info().outputPath('calendar.png'), fullPage: true })
+    await page.setViewportSize({ width: 980, height: 820 })
+    await page.screenshot({ path: test.info().outputPath('calendar-980.png') })
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+    ).toBe(true)
     expect(errors).toEqual([])
   } finally {
     await app.close()
   }
 })
 
-test('보고서 필터와 CSV/PDF, 백업 복원 및 잘못된 백업 보호', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'artchology-reports-'))
-  const app = await launch(directory)
+test('캘린더 종일 여러 날 일정·편집·삭제와 네 가지 보기', async () => {
+  const app = await launch()
   try {
     const page = await app.firstWindow()
-    await expect(page.locator('h1')).toContainText('마음을 살피는 하루의 시작')
-    const original = await page.evaluate(() => window.api.load())
-    if (!original.ok) throw new Error(original.error)
-    const menu = page.getByRole('navigation', { name: '주 메뉴' })
-    await menu.getByRole('button', { name: '보고서', exact: true }).click()
-    await page.getByLabel('보고서 학생').selectOption('demo-student-1')
-    await page.getByLabel('보고서 상담 상태').selectOption('완료')
-    const csv = join(directory, 'filtered.csv')
-    await app.evaluate(({ dialog }, filePath) => {
-      dialog.showSaveDialog = async () => ({ canceled: false, filePath })
-    }, csv)
-    await page.getByRole('button', { name: 'CSV 내보내기' }).click()
-    await expect(page.getByRole('status')).toContainText('파일을 저장했습니다.')
-    const content = await readFile(csv, 'utf8')
-    expect(content).toContain('김하늘')
-    expect(content).not.toContain('이서준')
-    expect(content).not.toContain('"예정"')
-    expect(content.split('\r\n')).toHaveLength(
-      1 +
-        original.data.sessions.filter(
-          (row) => row.studentId === 'demo-student-1' && row.state === '완료'
-        ).length
+    await menu(page, '홈')
+    await sub(page, '캘린더')
+    const today = await page.locator('.wt-fc-today[data-date]').first().getAttribute('data-date')
+    expect(today).toBeTruthy()
+    await page.getByRole('button', { name: '새 일정', exact: true }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByLabel('일정 제목').fill('3일간 마음 돌봄')
+    await dialog.getByLabel('종일 일정').check()
+    await dialog.getByLabel('시작 일시').fill(today!)
+    await dialog.getByLabel('마지막 날짜 (포함)').fill(dateAfter(today!, 2))
+    await dialog.getByRole('button', { name: '일정 추가', exact: true }).click()
+    const event = page
+      .locator('.wt-fc-event:not(.wt-fc-mirror)')
+      .filter({ hasText: '3일간 마음 돌봄' })
+      .first()
+    await expect(event).toBeVisible()
+    await event.click()
+    await expect(dialog.getByLabel('시작 일시')).toHaveValue(today!)
+    await expect(dialog.getByLabel('마지막 날짜 (포함)')).toHaveValue(dateAfter(today!, 2))
+    await dialog.getByLabel('일정 제목').fill('수정한 마음 돌봄')
+    await dialog.getByRole('button', { name: '변경 저장' }).click()
+    for (const name of ['주', '일', '목록', '월']) {
+      await page
+        .getByRole('group', { name: '캘린더 보기' })
+        .getByRole('button', { name, exact: true })
+        .click()
+      await expect(
+        page.getByRole('group', { name: '캘린더 보기' }).getByRole('button', { name, exact: true })
+      ).toHaveAttribute('aria-pressed', 'true')
+    }
+    await page
+      .locator('.wt-fc-event:not(.wt-fc-mirror)')
+      .filter({ hasText: '수정한 마음 돌봄' })
+      .first()
+      .click()
+    await dialog.getByRole('button', { name: '삭제', exact: true }).click()
+    await dialog.getByRole('button', { name: '일정 삭제 확인' }).click()
+    await expect(
+      page.locator('.wt-fc-event:not(.wt-fc-mirror)').filter({ hasText: '수정한 마음 돌봄' })
+    ).toHaveCount(0)
+  } finally {
+    await app.close()
+  }
+})
+
+test('캘린더 실제 마우스 드래그 이동과 기간 조정·되돌리기', async () => {
+  const app = await launch()
+  try {
+    const page = await app.firstWindow()
+    await sub(page, '캘린더')
+    await page
+      .getByRole('group', { name: '캘린더 보기' })
+      .getByRole('button', { name: '주', exact: true })
+      .click()
+    const today = await page.locator('.wt-fc-today[data-date]').first().getAttribute('data-date')
+    expect(today).toBeTruthy()
+    await page.getByRole('button', { name: '새 일정', exact: true }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByLabel('일정 제목').fill('드래그 검증 일정')
+    await dialog.getByLabel('시작 일시').fill(today! + 'T10:00')
+    await dialog.getByLabel('종료 일시').fill(today! + 'T11:00')
+    await dialog.getByRole('button', { name: '일정 추가', exact: true }).click()
+    const event = page
+      .locator('.wt-fc-event:not(.wt-fc-mirror)')
+      .filter({ hasText: '드래그 검증 일정' })
+    await expect(event).toBeVisible()
+    const initial = await event.boundingBox()
+    if (!initial) throw Error('일정 영역 없음')
+    const slots = page.locator('.wt-fc-slot[data-time]')
+    const slot1 = await slots.nth(0).boundingBox(),
+      slot2 = await slots.nth(1).boundingBox()
+    if (!slot1 || !slot2) throw Error('시간 슬롯 없음')
+    const hour = (slot2.y - slot1.y) * 2
+    await page.mouse.move(initial.x + initial.width / 2, initial.y + 12)
+    await page.mouse.down()
+    await page.mouse.move(initial.x + initial.width / 2, initial.y + 12 + hour, { steps: 20 })
+    await page.mouse.up()
+    await expect(page.getByRole('button', { name: '이동 되돌리기' })).toBeVisible()
+    await event.click()
+    const movedStart = await dialog.getByLabel('시작 일시').inputValue()
+    const movedEnd = await dialog.getByLabel('종료 일시').inputValue()
+    expect(new Date(movedStart).getTime()).toBeGreaterThan(new Date(today! + 'T10:00').getTime())
+    expect(new Date(movedEnd).getTime() - new Date(movedStart).getTime()).toBe(3600000)
+    await dialog.getByRole('button', { name: '취소', exact: true }).click()
+    await page.getByRole('button', { name: '이동 되돌리기' }).click()
+    await event.click()
+    await expect(dialog.getByLabel('시작 일시')).toHaveValue(today! + 'T10:00')
+    await dialog.getByRole('button', { name: '취소', exact: true }).click()
+    const handle = event.locator('.wt-fc-resizer-end')
+    await event.hover()
+    const hb = await handle.boundingBox()
+    if (!hb) throw Error('기간 조정 핸들 없음')
+    await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2 + hour, { steps: 20 })
+    await page.mouse.up()
+    await expect(event).toHaveCount(1)
+    await event.click()
+    expect(new Date(await dialog.getByLabel('종료 일시').inputValue()).getTime()).toBeGreaterThan(
+      new Date(today! + 'T11:00').getTime()
     )
-    await page.getByLabel('시작일', { exact: true }).fill('2026-12-31')
-    await page.getByLabel('종료일', { exact: true }).fill('2026-01-01')
-    await expect(page.getByRole('alert')).toContainText('시작일은 종료일보다')
-    await expect(page.getByRole('button', { name: 'CSV 내보내기' })).toBeDisabled()
-    await page.getByRole('button', { name: '초기화', exact: true }).click()
-    await page.getByRole('button', { name: '관리자 보고서', exact: true }).click()
-    const pdf = join(directory, 'report.pdf')
-    await app.evaluate(({ dialog }, filePath) => {
-      dialog.showSaveDialog = async () => ({ canceled: false, filePath })
-    }, pdf)
-    await page.getByRole('button', { name: 'PDF 저장' }).click()
-    await expect
-      .poll(async () => {
-        try {
-          return (await readFile(pdf)).subarray(0, 5).toString()
-        } catch {
-          return ''
-        }
-      })
-      .toBe('%PDF-')
-    await page.screenshot({ path: test.info().outputPath('report-preview.png') })
-    await page.getByRole('button', { name: '설정', exact: true }).click()
-    await page.getByRole('button', { name: '백업 · 복원', exact: true }).click()
-    const backup = join(directory, 'backup.json')
-    const restored = {
-      ...original.data,
-      settings: { ...original.data.settings, school: '복원 확인 학교' }
+    await expect(dialog.getByLabel('시작 일시')).toHaveValue(today! + 'T10:00')
+  } finally {
+    await app.close()
+  }
+})
+
+test('학생 등록에서 사례·상담 기록 작성 및 캘린더 연결', async () => {
+  const app = await launch()
+  try {
+    const page = await app.firstWindow()
+    await menu(page, '학생 관리')
+    await sub(page, '학생 등록')
+    const dialog = page.getByRole('dialog')
+    await dialog.getByLabel('이름 *', { exact: true }).fill('연결검증학생')
+    await dialog.getByLabel('학년', { exact: true }).selectOption('3')
+    await dialog.getByLabel('반 이름').fill('1')
+    await dialog.getByLabel('번호', { exact: true }).fill('25')
+    await dialog.getByRole('button', { name: '저장', exact: true }).click()
+    await page.getByRole('button', { name: '연결검증학생', exact: true }).click()
+    await expect(page.getByRole('heading', { name: '연결검증학생', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: '사례 등록', exact: true }).click()
+    await page.getByLabel('주호소 *').fill('학교 적응과 또래 관계')
+    await page.getByLabel('상담목표', { exact: true }).fill('친구에게 마음 표현하기')
+    await page.getByRole('button', { name: '사례 등록', exact: true }).click()
+    await expect(page.getByRole('heading', { name: '연결검증학생', exact: true })).toBeVisible()
+    for (const name of ['사례 개념화', '상담 기록', '동의서', '개요']) {
+      await page
+        .getByRole('navigation', { name: '하위 메뉴', exact: true })
+        .getByRole('button', { name, exact: true })
+        .click()
     }
-    await writeFile(backup, JSON.stringify(restored))
-    await app.evaluate(({ dialog }, filePath) => {
-      dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filePath] })
-    }, backup)
-    await page.getByRole('button', { name: '복원할 백업 선택' }).click()
-    const dialog = page.getByRole('dialog', { name: '백업 복원 확인' })
-    await expect(dialog).toContainText('복원 확인 학교')
-    await expect(dialog.getByRole('button', { name: '확인한 백업 복원' })).toBeDisabled()
-    await dialog.getByRole('checkbox').check()
-    await dialog.getByRole('button', { name: '확인한 백업 복원' }).click()
-    await expect(dialog).toHaveCount(0)
-    await expect(page.locator('.school-block')).toContainText('복원 확인 학교')
-    const after = await page.evaluate(() => window.api.load())
-    expect(after.ok && after.data.settings.school).toBe('복원 확인 학교')
-    const invalid = {
-      ...restored,
-      sessions: [{ ...restored.sessions[0], studentId: 'missing-student' }]
-    }
-    await writeFile(backup, JSON.stringify(invalid))
-    await page.getByRole('button', { name: '복원할 백업 선택' }).click()
-    await dialog.getByRole('checkbox').check()
-    await dialog.getByRole('button', { name: '확인한 백업 복원' }).click()
-    await expect(dialog.getByRole('alert')).toContainText('학생 연결')
-    const unchanged = await page.evaluate(() => window.api.load())
-    expect(unchanged).toEqual(after)
-    await dialog.getByRole('button', { name: '취소' }).click()
-    await writeFile(backup, '{broken')
-    await page.getByRole('button', { name: '복원할 백업 선택' }).click()
-    await expect(page.getByRole('alert')).toBeVisible()
-    expect(await page.evaluate(() => window.api.load())).toEqual(after)
+    await page.getByRole('button', { name: '상담 기록 추가', exact: true }).click()
+    await page.getByLabel('상담제목', { exact: true }).fill('연결 검증 상담')
+    await page.getByLabel('상담내용', { exact: true }).fill('나이스용 요약')
+    await page.getByLabel('상담 기록 · 내부 기록', { exact: true }).fill('내부 관찰 내용')
+    await page.getByRole('button', { name: '상담 기록 등록', exact: true }).click()
+    await expect(page.getByRole('heading', { name: '상담 상세', exact: true })).toBeVisible()
+    await expect(page.getByLabel('상담내용', { exact: true })).toHaveValue('나이스용 요약')
+    await expect(page.getByLabel('상담 기록 · 내부 기록', { exact: true })).toHaveValue(
+      '내부 관찰 내용'
+    )
+    await page.screenshot({ path: test.info().outputPath('session-detail.png') })
+    await menu(page, '홈')
+    await sub(page, '캘린더')
+    await expect(
+      page.locator('.wt-fc-event:not(.wt-fc-mirror)').filter({ hasText: '연결 검증 상담' }).first()
+    ).toBeVisible()
   } finally {
     await app.close()
   }
