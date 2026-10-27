@@ -1,82 +1,65 @@
-# artchology
+# Artchology · Weetory 화면 PoC
 
-React + TypeScript + Electron 기반 로컬 데스크톱 시연 앱입니다.
+React + TypeScript + Electron으로 구현한 협업 검토용 화면입니다. 설치된 Weetory의 비AI 메뉴와 상세 흐름을 기준으로 기존 밝은 파란색 UI를 유지했습니다.
 
-## 개발
+## 실행과 검증
 
 Node.js 22.12 이상이 필요합니다.
 
 ```sh
 pnpm install
 pnpm dev
-```
-
-`pnpm dev`는 브라우저 대신 Electron 앱 창을 실행하며 화면 변경을 즉시 반영합니다.
-
-## 검증 및 패키징
-
-```sh
 pnpm lint
 pnpm build
 pnpm test
 pnpm build:unpack
 ```
 
-macOS에서 `build:unpack` 실행 시 `dist/mac-arm64/artchology.app`(Apple Silicon)이 생성됩니다.
-`pnpm build:mac`으로 macOS 배포 파일을 만들 수 있습니다. 로컬 시연용이며 Apple 공증은 설정하지 않았습니다.
-Windows 패키징 스크립트는 `pnpm build:win`이며 해당 환경에서 별도 검증이 필요합니다.
+Apple Silicon 시연 앱: `dist/mac-arm64/artchology.app`. Windows 빌드는 `pnpm build:win`이며 Windows 환경 검증은 별도로 필요합니다.
 
-## 구조
+## 화면 구성
 
-- `src/main`: Electron 창, 입력 검증, 파일 기반 로컬 DB, 내보내기 처리
-- `src/preload`: 화면과 Electron 간 통신 연결
-- `src/renderer/src`: React 화면
-- `electron.vite.config.ts`: 개발 서버·번들 설정
-- `electron-builder.yml`: 앱 패키징 설정
+- 홈: 오늘의 상담, 캘린더, 사례 현황, 장기 미접촉, 최근 기록, 기록물 보관
+- 사례 관리: 목록/검색/필터, 생성/수정/종결/재개, 개요/사례 개념화/상담 기록/동의서, 번호 규칙/변경 이력/되돌리기, 나이스 가져오기 단계
+- 학생 관리: 기본 정보, 학년도별 학적, 사례와 회기 연결, 명렬표 입력/학생 연결/졸업 검토, 정보 요청 미리보기
+- 통계: 요약/상담 분류/시간 흐름/유입·종결, 조건별 상담 목록
+- 보고서: 나이스 엑셀/상담관리대장/관리자 보고서 미리보기, 기록물철 작성/확정/이관
+- 공지사항: 목록/필터/상세/도움말
+- 설정: 기본 정보/학교 관리/교시/보안/백업·복원/자동 백업/구독·계정/문서 폴더/공공데이터 출처
 
-## 시연 기능
+AI 생성, 음성 인식 등 AI 기능은 제외했습니다. 상단 탭/앞뒤 이동/학교 선택/빠른 학생 검색/화면 잠금도 연결했습니다.
 
-- 홈: 날짜별 상담 일정, 최근 기록, 학생 바로가기
-- 학생 관리: 등록·수정·검색·학년/주제/상태 필터·정렬, 상세의 기본 정보/상담 이력/마음 그림 탭, 목록 복귀 시 검색 조건 보존
-- 상담 기록: 목록/달력 보기, 기간 검색, 상세 조회→내용/다음 계획/학생 이력/그림→수정·다음 예약. 상세 복귀 시 목록 조건 보존
-- 마음 그리기: 표현 활동 3종, 캔버스·색상·붓·지우개·되돌리기, 학생별 그림/메모 저장, 작품 보관함과 확대 상세, 미저장 활동 이탈 확인
-- 통계: 요약/분류/시간 흐름/학생 현황. 월·분류 집계에서 실제 상담 목록과 상세로 이동
-- 보고서: 상담관리대장/학생별 기록/관리자 보고서/백업. 기간·학생·상태별 미리보기와 동일 조건의 CSV/PDF 출력 (나이스 전용 서식은 미구현)
-- 설정: 기본 정보/백업·복원/앱 정보. JSON 복원 미리보기와 확인, 복원 전 자동 사본 생성, 참조가 깨진 백업 거부
+## 캘린더
 
-첫 실행에 가상 학생 8명과 상담 예시가 생성됩니다. AI·암호화·기기 간 동기화는 포함하지 않습니다.
-드로잉은 시연용 표현 활동이며 실제 아트봉봉 콘텐츠 API나 심리검사에 연결되지 않습니다.
+`@fullcalendar/react` **7.1.3**과 `temporal-polyfill`을 사용합니다. v7의 통합 플러그인 경로, Monarch 테마, 공개 스타일 훅을 사용합니다.
 
-## 로컬 저장
+- 월/주/일/목록, 오늘/이전/다음, 주말 표시와 분류 필터
+- 빈 날짜 클릭 또는 범위 드래그로 등록
+- 일정 드래그 이동, 시작/끝 기간 조정, 한 단계 되돌리기
+- 종일 및 여러 날 일정, 제목/장소/색/미리 알림 설정, 연결 사례, 수정/삭제
+- 종일 일정의 입력 화면은 마지막 날짜를 **포함**합니다. FullCalendar의 내부 종료 날짜는 **미포함** 규약으로 변환합니다.
+- 일정과 상담 기록은 같은 메모리 상태를 사용합니다. 미리 알림은 설정 UI이며 실제 알림 발송은 후속 범위입니다.
 
-시연 속도와 네이티브 빌드 도구 없는 실행을 위해 **lowdb(JSON 파일)**를 사용합니다. SQLite는 아직 도입하지 않았습니다.
-저장 위치는 Electron `app.getPath('userData')` 아래 `artchology-demo.json`입니다.
-macOS 개발 실행의 기본 경로는 `~/Library/Application Support/artchology/artchology-demo.json`입니다.
-상담/학생/그림/설정을 직렬화된 쓰기로 저장하며, 손상된 파일은 덮어쓰지 않고 오류로 표시합니다.
-실제 학생 개인정보 대신 가상 데이터만 사용하세요.
+공식 참고: [React](https://fullcalendar.io/docs/react), [v7 API](https://fullcalendar.io/docs/upgrading-from-v6-js), [v7 스타일 훅](https://fullcalendar.io/docs/upgrading-from-v6-css).
+
+## 데이터와 연결 범위
+
+현재 진입점은 `src/renderer/src/weetory/Shell.tsx`입니다. `model.ts`의 가상 자료를 `WorkspaceProvider`의 메모리 상태로 관리합니다. **앱을 재시작하면 이번 실행 중 입력한 내용은 초기화됩니다.** 로컬 DB PoC 연결은 다음 단계입니다.
+
+계정/구독/문자·링크 발송/원격 동의 수신/알림/암호화/외부 파일 출력 등은 화면 또는 미리보기입니다. 실제 서비스 처리나 암호화 성공으로 표시하지 않습니다. 명렬표 CSV·TSV 및 나이스 TSV 입력은 메모리 등록을 지원하며, 실제 Excel 자동 분석은 연결 전입니다. 공지 내용은 시연 자료입니다.
+
+기존 `src/main/data`와 구 renderer는 이전 시연 코드로 남아 있습니다. 그 JSON 저장 계층은 새 화면의 데이터와 연결되지 않습니다. 원본 서버에 요청하지 않습니다.
+
+## 원본 확인과 차이
+
+참조 대상은 `~/Downloads/Weetory-Setup-latest.exe`로 Sikarugir에 설치된 Weetory의 `resources/app.asar`입니다. 추출된 renderer/preload/main의 메뉴·화면·입력 필드·IPC 선언과 포함된 튜토리얼 화면을 확인했습니다. 원본 전체를 실시간 조작하며 모든 상태를 검증한 것은 아닙니다.
+
+현재는 원본의 화면 구조와 비AI 업무 흐름을 재현하는 단계입니다. 픽셀 단위 동일성이나 서버 동작의 동일성을 주장하지 않습니다. 학교별 교시 독립 설정, 이관 연장 등 세부 상태와 실제 외부 문서/발송 연결은 후속 보완 범위입니다.
 
 ## 테스트
 
-`pnpm test`는 별도의 임시 데이터 폴더와 숨김 Electron 창을 사용합니다.
-학생 등록, 상담·그림 저장, 상세 화면 이동과 필터 보존, 통계 드릴다운, 조건별 CSV/PDF 출력, 설정 변경, 백업 복원과 잘못된 참조 거부, 재시작 후 보존 및 손상 파일 보호를 확인합니다.
-스크린샷과 실패 시 추적 파일은 Git에서 제외된 `test-results/`에 남습니다.
-`ARTCHOLOGY_DATA_DIR`은 별도 데이터 폴더, `ARTCHOLOGY_TEST_HEADLESS=1`은 숨김 실행용입니다.
-
-## 작업 규칙
-
-브랜치: `feature/counseling-desktop-prototype`. 커밋 제목은 `feat: 상담 기록 화면 추가`, `fix: 저장 오류 수정`, `chore: 개발 설정 정리`처럼 Conventional Commits prefix와 한국어 메시지를 사용합니다.
+`tests/desktop.spec.ts`는 임시 사용자 폴더와 숨김 Electron 창에서 메뉴 탐색, 종일/여러 날 일정 편집·삭제, 보기 전환, 실제 마우스 이동·기간 조정·되돌리기, 학생→사례→상담→캘린더 연결을 검사합니다. 스크린샷은 Git에서 제외된 `test-results/`에 남습니다.
 
 ## 폰트
 
-Pretendard Variable을 앱에 포함해 오프라인에서도 사용합니다.
-라이선스: `src/renderer/src/assets/fonts/LICENSE.txt` (SIL Open Font License 1.1).
-
-## 참고 화면과 구현 범위
-
-Sikarugir로 설치된 Weetory 1.0.10의 renderer에서 학생 상세→상담 상세, 통계 하위 메뉴, 보고서와 설정의 구성을 참고했습니다. 원본 패키지의 정적 확인이며 원본 앱 전체 실행 동작의 검증을 뜻하지 않습니다.
-
-이번 구현은 현재 Artchology의 7개 메뉴(홈·학생 관리·상담 기록·마음 그리기·통계·보고서·설정)에 하위 화면과 로컬 저장 동작을 연결합니다. Weetory의 독립 사례 관리, 사례 개념화·동의서 발송, 나이스 전용 분류/가져오기, AI·음성 인식·구독·다중 학교 기능은 이 앱에 포함되지 않습니다. 상담 데이터의 기존 JSON 형식(version 1)은 유지합니다.
-
-백업 복원은 선택 파일의 형식과 학생 참조/중복 ID를 검증합니다. 복원 직전 데이터는 앱 데이터 폴더의 `before-restore-<timestamp>.json`에 남으며, 필요 시 해당 파일을 다시 선택해 복원할 수 있습니다. JSON 백업과 CSV는 암호화하지 않습니다.
-
-원본 분석 참고: REA evidence `ev_6ea7ea17ad8d73776014be203a19141949c7cc5afa157192867e981c235ef146`. 4.8MB renderer의 자동 의미 분석은 메모리 제한으로 부분 결과만 반환했으므로, 메뉴/경로/필드는 추출된 renderer의 해당 함수와 선언을 직접 확인했습니다.
+Pretendard Variable을 앱에 포함합니다. 라이선스는 `src/renderer/src/assets/fonts/LICENSE.txt` (SIL OFL 1.1)입니다.

@@ -1,4 +1,12 @@
-import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import {
+  cloneElement,
+  isValidElement,
+  useId,
+  useEffect,
+  useRef,
+  type ButtonHTMLAttributes,
+  type ReactNode
+} from 'react'
 import { X, ArrowUpRight, Search, Sprout } from 'lucide-react'
 import type { Student } from '../../../shared/model'
 
@@ -144,10 +152,13 @@ export function Field({
   children: ReactNode
   full?: boolean
 }): React.JSX.Element {
+  const labelId = useId()
   return (
     <label className={`field ${full ? 'field-full' : ''}`}>
-      <span>{label}</span>
-      {children}
+      <span id={labelId}>{label}</span>
+      {isValidElement<{ 'aria-labelledby'?: string }>(children)
+        ? cloneElement(children, { 'aria-labelledby': labelId })
+        : children}
     </label>
   )
 }
