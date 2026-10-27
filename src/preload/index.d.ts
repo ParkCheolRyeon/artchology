@@ -1,8 +1,6 @@
-import { ElectronAPI } from '@electron-toolkit/preload'
-
+import type { DesktopAPI } from '../shared/model'
 declare global {
   interface Window {
-    electron: ElectronAPI
-    api: unknown
+    api: DesktopAPI
   }
 }
