@@ -425,3 +425,55 @@ test('마음 그리기: 홈 카드·캔버스·되돌리기·저장·작품 보�
     await app.close()
   }
 })
+
+test('탭 선택 표시: 이동·너비 변경·키보드·상단 탭 전환', async () => {
+  const app = await launch()
+  try {
+    const page = await app.firstWindow()
+    await menu(page, '통계')
+    const list = page.getByRole('tablist', { name: '하위 메뉴', exact: true })
+    const aligned = async (): Promise<boolean> =>
+      list.evaluate((element) => {
+        const indicator = element.querySelector('.wt-tab-indicator')!.getBoundingClientRect()
+        const tab = element.querySelector('[data-state=active]')!.getBoundingClientRect()
+        return Math.abs(indicator.x - tab.x) < 1 && Math.abs(indicator.width - tab.width) < 1
+      })
+    await expect.poll(aligned).toBe(true)
+    await list.getByRole('tab', { name: '상담 분류' }).click()
+    await expect.poll(aligned).toBe(true)
+    await list.getByRole('tab', { name: '상담 분류' }).press('ArrowRight')
+    await expect(list.getByRole('tab', { name: '시간 흐름' })).toHaveAttribute(
+      'data-state',
+      'active'
+    )
+    await expect.poll(aligned).toBe(true)
+    await page.setViewportSize({ width: 980, height: 820 })
+    await expect.poll(aligned).toBe(true)
+    await page.screenshot({
+      animations: 'disabled',
+      path: test.info().outputPath('tab-indicator.png')
+    })
+    await page.getByRole('button', { name: '새 탭', exact: true }).click()
+    const top = page.getByRole('tablist', { name: '열린 화면' })
+    await top.getByRole('tab', { name: '통계' }).click()
+    await expect
+      .poll(() =>
+        top.evaluate((element) => {
+          const indicator = element.querySelector('.wt-tab-indicator')!.getBoundingClientRect()
+          const active = element.querySelector('.wt-tab.active')!.getBoundingClientRect()
+          return (
+            Math.abs(indicator.x - active.x) < 1 && Math.abs(indicator.width - active.width) < 1
+          )
+        })
+      )
+      .toBe(true)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    expect(
+      await list
+        .locator('.wt-tab-indicator')
+        .evaluate((element) => Number.parseFloat(getComputedStyle(element).transitionDuration))
+    ).toBeLessThan(0.001)
+  } finally {
+    await app.close()
+  }
+})

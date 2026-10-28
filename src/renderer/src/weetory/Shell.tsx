@@ -1,3 +1,4 @@
+import { TabIndicator } from '../components/TabIndicator'
 import { BrandIcon } from '../components/BrandIcon'
 import { Input as TextInput } from '../components/ui/input'
 import { FormSelect } from '../components/form-controls'
@@ -354,6 +355,7 @@ function ShellBody({
             </button>
           </div>
           <div className="wt-tabbar" role="tablist" aria-label="열린 화면">
+            <TabIndicator selector=".wt-tab.active" />
             {tabs.map((tab) => (
               <div className={`wt-tab ${tab.id === active ? 'active' : ''}`} key={tab.id}>
                 <button
