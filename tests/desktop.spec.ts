@@ -48,6 +48,29 @@ test('원본 메뉴와 모든 하위 화면 탐색', async () => {
     await expect(
       page.getByRole('navigation', { name: '주 메뉴', exact: true }).getByRole('button')
     ).toHaveCount(7)
+    const sidebarWidth = async (): Promise<number> =>
+      page
+        .locator('.wt-shell')
+        .evaluate((element) =>
+          Number.parseFloat(getComputedStyle(element).gridTemplateColumns.split(' ')[1])
+        )
+    await page.getByRole('button', { name: '하위 메뉴 접기' }).click()
+    await expect.poll(sidebarWidth).toBe(0)
+    await expect(page.locator('#workspace-sidebar')).toHaveAttribute('inert', '')
+    await expect(page.getByRole('navigation', { name: '메뉴별 하위 목록' })).toHaveCount(0)
+    await page.getByRole('button', { name: '하위 메뉴 펼치기' }).click()
+    await expect.poll(sidebarWidth).toBe(214)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    expect(
+      await page
+        .locator('.wt-shell')
+        .evaluate((element) => Number.parseFloat(getComputedStyle(element).transitionDuration))
+    ).toBeLessThan(0.001)
+    await page.getByRole('button', { name: '하위 메뉴 접기' }).click()
+    await expect.poll(sidebarWidth).toBe(0)
+    await page.getByRole('button', { name: '하위 메뉴 펼치기' }).click()
+    await expect.poll(sidebarWidth).toBe(214)
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
     for (const name of ['홈', '사례 관리', '학생 관리', '통계', '보고서', '공지사항', '설정']) {
       await menu(page, name)
       const labels = await page

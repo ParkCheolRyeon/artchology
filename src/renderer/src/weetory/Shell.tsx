@@ -1,7 +1,7 @@
 import { BrandIcon } from '../components/BrandIcon'
 import { Input as TextInput } from '../components/ui/input'
 import { FormSelect } from '../components/form-controls'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   House,
   FolderOpen,
@@ -183,6 +183,24 @@ function ShellBody({
   canForward: boolean
 }): React.JSX.Element {
   const { data, setData, path, navigate } = useWorkspace()
+  const mainRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    if (media.matches) return
+    const animation = mainRef.current?.animate([{ opacity: 0.7 }, { opacity: 1 }], {
+      duration: 160,
+      easing: 'cubic-bezier(0.2, 0, 0, 1)'
+    })
+    const stop = (): void => {
+      if (media.matches) animation?.cancel()
+    }
+    media.addEventListener('change', stop)
+    return () => {
+      animation?.cancel()
+      media.removeEventListener('change', stop)
+    }
+  }, [path, data.activeSchoolId])
+
   const section = sectionFor(path)
   const [collapsed, setCollapsed] = useState(false),
     [query, setQuery] = useState(''),
@@ -265,7 +283,12 @@ function ShellBody({
           <HelpCircle size={20} />
         </button>
       </aside>
-      <aside className="wt-section-panel">
+      <aside
+        id="workspace-sidebar"
+        className="wt-section-panel"
+        inert={collapsed}
+        aria-hidden={collapsed}
+      >
         <div className="wt-school-brand">
           <strong>{data.settings.counselor} 선생님의 상담실</strong>
           <span>{data.settings.schoolYear}학년도 · 전문상담교사</span>
@@ -306,6 +329,8 @@ function ShellBody({
           <button
             className="icon-button"
             aria-label={collapsed ? '하위 메뉴 펼치기' : '하위 메뉴 접기'}
+            aria-expanded={!collapsed}
+            aria-controls="workspace-sidebar"
             onClick={() => setCollapsed(!collapsed)}
           >
             {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
@@ -416,7 +441,7 @@ function ShellBody({
             )}
           </div>
         </div>
-        <main className="wt-main" key={data.activeSchoolId}>
+        <main ref={mainRef} className="wt-main" key={data.activeSchoolId}>
           {section === 'home' && <HomePage />}
           {section === 'cases' && <CasesPage />}
           {section === 'students' && <StudentsPage />}

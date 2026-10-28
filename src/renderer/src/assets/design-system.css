@@ -310,3 +310,95 @@
     }
   }
 }
+
+@layer components {
+  .wt-shell {
+    --wt-rail-width: 72px;
+    --wt-sidebar-width: 214px;
+    --wt-ease: cubic-bezier(0.2, 0, 0, 1);
+    grid-template-columns: var(--wt-rail-width) var(--wt-sidebar-width) minmax(0, 1fr);
+    transition: grid-template-columns 220ms var(--wt-ease);
+  }
+  .wt-shell.wt-collapsed {
+    grid-template-columns: var(--wt-rail-width) 0px minmax(0, 1fr);
+  }
+  .wt-section-panel {
+    width: var(--wt-sidebar-width);
+    min-width: 0;
+    clip-path: inset(0);
+    opacity: 1;
+    transition:
+      clip-path 220ms var(--wt-ease),
+      opacity 160ms ease-out;
+  }
+  .wt-collapsed .wt-section-panel {
+    display: flex;
+    clip-path: inset(0 100% 0 0);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .wt-rail nav button,
+  .wt-section-panel nav button,
+  .wt-tab,
+  .wt-row-link,
+  .wt-agenda-row,
+  .wt-choice,
+  .wt-art-studio .drawing-tools button,
+  .icon-button,
+  [data-slot='button'],
+  [data-slot='tabs-trigger'] {
+    transition:
+      background-color 150ms ease-out,
+      border-color 150ms ease-out,
+      color 150ms ease-out,
+      box-shadow 150ms ease-out;
+  }
+  .wt-art-studio .activity-card {
+    transition:
+      transform 180ms ease-out,
+      border-color 180ms ease-out,
+      box-shadow 180ms ease-out;
+  }
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .wt-art-studio .activity-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px #234d790a;
+    }
+  }
+  [data-slot='dialog-content'],
+  [data-slot='dialog-overlay'],
+  [data-slot='select-content'],
+  [data-slot='popover-content'] {
+    animation-duration: 160ms;
+  }
+  .wt-tab,
+  .toast,
+  .wt-search-results {
+    animation: wt-soft-appear 160ms ease-out;
+  }
+  @keyframes wt-soft-appear {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @media (max-width: 1150px) {
+    .wt-shell {
+      --wt-rail-width: 65px;
+      --wt-sidebar-width: 182px;
+    }
+  }
+  @media (max-width: 850px) {
+    .wt-shell,
+    .wt-shell.wt-collapsed {
+      --wt-rail-width: 60px;
+      grid-template-columns: 60px minmax(0, 1fr);
+    }
+    .wt-section-panel,
+    .wt-collapsed .wt-section-panel {
+      display: none;
+    }
+  }
+}
