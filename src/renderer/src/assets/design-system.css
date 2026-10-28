@@ -1,0 +1,101 @@
+@layer theme, base, legacy, components, utilities;
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import './main.css' layer(legacy);
+@import '../weetory/weetory.css' layer(legacy);
+@source '../';
+
+@theme inline {
+  --font-sans: Pretendard, -apple-system, BlinkMacSystemFont, sans-serif;
+  --color-background: #f8fafc;
+  --color-foreground: #263445;
+  --color-card: #fff;
+  --color-card-foreground: #263445;
+  --color-popover: #fff;
+  --color-popover-foreground: #263445;
+  --color-primary: #2589ee;
+  --color-primary-foreground: #fff;
+  --color-secondary: #edf6ff;
+  --color-secondary-foreground: #246bad;
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #708196;
+  --color-accent: #edf6ff;
+  --color-accent-foreground: #246bad;
+  --color-destructive: #d34f58;
+  --color-border: #e3eaf2;
+  --color-input: #dce5ef;
+  --color-ring: #8dc5fc;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply font-sans text-foreground;
+  }
+}
+@layer components {
+  [data-slot='dialog-overlay'] {
+    z-index: 50;
+  }
+  [data-slot='dialog-content'] {
+    z-index: 51;
+  }
+  [data-slot='select-content'],
+  [data-slot='popover-content'] {
+    z-index: 60;
+  }
+  [data-slot='calendar'] table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  [data-slot='calendar'] th,
+  [data-slot='calendar'] td {
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  [data-slot='calendar'] button {
+    font-family: inherit;
+  }
+  [data-slot='calendar'] select {
+    padding: 0;
+  }
+}
+
+@layer components {
+  .page-heading {
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .heading-actions {
+    flex-wrap: wrap;
+  }
+  .wt-stack > .page-heading {
+    margin-bottom: 0;
+  }
+  .wt-stack > .wt-note {
+    padding: 0;
+  }
+  [data-slot='checkbox'] {
+    vertical-align: middle;
+    margin-right: 5px;
+  }
+  .wt-search input {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

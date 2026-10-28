@@ -28,5 +28,14 @@ export default defineConfig(
       ...eslintPluginReactRefresh.configs.vite.rules
     }
   },
+  // Keep official shadcn registry source conventions; app adapters keep stricter rules.
+  {
+    files: ['src/renderer/src/components/ui/**/*.tsx'],
+    rules: {
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      'react-refresh/only-export-components': 'off',
+      'react/prop-types': 'off'
+    }
+  },
   eslintConfigPrettier
 )
