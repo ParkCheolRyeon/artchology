@@ -1,0 +1,1419 @@
+{
+  "title": "Artchology — 도메인 피라미드 ERD",
+  "brand": "ARTCHOLOGY · DATA DESIGN",
+  "brandmark": "A",
+  "edition": "2026-10-28 · 신규 설계안",
+  "footer": "현재 프로토타입 코드에서 도출한 제안 · DB 미적용",
+  "tabs": [
+    {
+      "label": "설계 원칙",
+      "title": "부모는 작게, 기능은 자식으로",
+      "intro": "로그인부터 상담 자료 저장까지, 도메인별 자식을 독립적으로 추가·제거할 수 있도록 설계했습니다.",
+      "facts": [
+        {
+          "label": "대상",
+          "value": "82개 테이블",
+          "note": "전체 후보 · 단계별 도입"
+        },
+        {
+          "label": "근거",
+          "value": "현재 코드",
+          "note": "메모리 상태 → 관계형 저장 설계"
+        },
+        {
+          "label": "상태",
+          "value": "설계만 완료",
+          "note": "DB·앱 코드 변경 없음"
+        }
+      ],
+      "sections": [
+        {
+          "id": "principles",
+          "title": "요청한 피라미드 구조",
+          "html": "<p>사용자가 설명한 DDD를 <strong>도메인별 최소 루트 + 기능별 자식 + 반복 상세·이력</strong>으로 해석했습니다. 부모는 도메인의 정체성을 유지하고 자식은 기능별 데이터를 담당합니다.</p><ul><li>루트는 ID, 소유 범위, 생명주기에 필요한 상태만 가집니다. 이메일·목표·본문·결제 정보는 자식에 둡니다.</li><li>자식이 부모 FK를 소유합니다. 부모는 자식 ID나 자식 유무 플래그를 갖지 않습니다. 1:1 확장 자식은 부모 ID를 PK/FK로 공유합니다.</li><li>자식이 없을 수 있으므로 조회는 필요 기능만 LEFT JOIN합니다. 필수 화면 생성 시 루트와 필수 프로필을 한 트랜잭션으로 생성합니다.</li><li>학생–사례, 학생–회기처럼 도메인이 만나는 부분은 연결 테이블을 둡니다. 전체 관계를 억지로 하나의 트리로 만들지 않습니다.</li><li>기능을 제거할 때는 자식의 후손·참조·보존할 기록을 먼저 처리합니다. 루트 변경 없이 확장할 수 있다는 뜻이지 FK를 무시하고 즉시 DROP할 수 있다는 뜻은 아닙니다.</li></ul><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1000 390\" role=\"img\" aria-label=\"사례 도메인의 부모와 기능별 자식 피라미드\"><g fill=\"none\" stroke=\"#254ff4\" stroke-width=\"2\"><path d=\"M500 74V110H160V148M500 110V148M500 110H840V148M840 218V258H500V298M840 258V298\"/></g><g font-family=\"Arial,sans-serif\" text-anchor=\"middle\"><rect x=\"330\" y=\"12\" width=\"340\" height=\"62\" rx=\"4\" fill=\"#254ff4\"/><text x=\"500\" y=\"38\" fill=\"white\" font-size=\"18\">counseling_case</text><text x=\"500\" y=\"60\" fill=\"white\" font-size=\"13\">id · school_id · status · opened_at</text><rect x=\"10\" y=\"148\" width=\"300\" height=\"70\" fill=\"#d9f66f\" stroke=\"#17201d\"/><text x=\"160\" y=\"176\" font-size=\"17\">case_assessment</text><text x=\"160\" y=\"200\" font-size=\"14\">주호소·목표·교사 의견</text><rect x=\"350\" y=\"148\" width=\"300\" height=\"70\" fill=\"#d9f66f\" stroke=\"#17201d\"/><text x=\"500\" y=\"176\" font-size=\"17\">case_student</text><text x=\"500\" y=\"200\" font-size=\"14\">참여 학생 연결</text><rect x=\"690\" y=\"148\" width=\"300\" height=\"70\" fill=\"#d9f66f\" stroke=\"#17201d\"/><text x=\"840\" y=\"176\" font-size=\"17\">consent_request</text><text x=\"840\" y=\"200\" font-size=\"14\">학생별 동의 요청</text><rect x=\"350\" y=\"298\" width=\"300\" height=\"58\" fill=\"#e9edff\" stroke=\"#17201d\"/><text x=\"500\" y=\"333\" font-size=\"17\">consent_document</text><rect x=\"690\" y=\"298\" width=\"300\" height=\"58\" fill=\"#e9edff\" stroke=\"#17201d\"/><text x=\"840\" y=\"333\" font-size=\"17\">consent_delivery</text></g></svg>"
+        },
+        {
+          "id": "current",
+          "title": "현재 저장 상태",
+          "html": "<p>실제 진입점은 <code>main.tsx → weetory/Shell.tsx</code>입니다. <code>model.ts</code>의 업무 자료는 <code>store.ts</code>의 Zustand 메모리에서만 유지됩니다. <code>auth.ts</code>의 PIN/복구 해시·초기 프로필은 localStorage, 잠금 만료 시각은 sessionStorage에 있습니다.</p><p><code>src/main/data/store.ts</code>에는 이전 모델용 lowdb JSON 저장이 있지만 현재 위토리 화면과 자동 연결되지 않습니다. 기존 관계형 테이블·마이그레이션은 확인되지 않았으며 아래 테이블은 모두 신규 설계안입니다.</p>"
+        },
+        {
+          "id": "placement",
+          "title": "서버와 기기의 경계",
+          "html": "<p><strong>배치 가정:</strong> 계정·구독·원격 동의는 서버가 처리하고, PIN·기기 설정·백업 실행은 로컬에 둡니다. 나머지 업무 영역은 하나의 관계형 저장 경계에서 실행하는 논리 모델입니다. 상담 원본을 서버와 로컬 중 어디에 둘지는 아직 확정하지 않았습니다.</p><p>ERD의 실제 FK 제안은 각 배치 안에서만 유효합니다. 업무 DB를 로컬에 둘 경우 workspace_member.account_id와 구독·원격 동의 연계는 API 식별자/로컬 미러로 바꾸고 동기화 outbox·충돌 정책을 추가해야 합니다. 이 문서는 분산 저장이 이미 해결됐다고 가정하지 않습니다.</p><p>local_device.installation_key와 서버 device.installation_key는 같은 설치를 식별하는 논리 연결이며 DB 간 FK가 아닙니다. 로그인 전 로컬 온보딩 자료는 계정 연결 시 workspace와 매핑합니다. PIN 검증 성공을 서버 계정 인증으로 인정하지 않습니다.</p>"
+        },
+        {
+          "id": "domains",
+          "title": "도메인 구성",
+          "html": "<div class=\"table-wrap\"><table><thead><tr><th>도메인</th><th>테이블 수</th><th>역할</th></tr></thead><tbody><tr><td>01 계정·인증</td><td>7</td><td>account / email_challenge / device</td></tr><tr><td>02 기기 PIN · 로컬 전용</td><td>4</td><td>local_device</td></tr><tr><td>03 상담 공간·설정</td><td>7</td><td>workspace</td></tr><tr><td>04 구독</td><td>6</td><td>subscription_plan / redemption_code</td></tr><tr><td>05 학생</td><td>4</td><td></td></tr><tr><td>06 사례</td><td>9</td><td></td></tr><tr><td>07 사례개념화</td><td>4</td><td></td></tr><tr><td>08 일정·상담 기록</td><td>9</td><td></td></tr><tr><td>09 동의서</td><td>15</td><td></td></tr><tr><td>10 작품·파일</td><td>6</td><td>art_activity</td></tr><tr><td>11 시간표·급식</td><td>4</td><td></td></tr><tr><td>12 기록물·운영</td><td>7</td><td></td></tr></tbody></table></div>"
+        }
+      ]
+    },
+    {
+      "label": "ERD 탐색",
+      "title": "관계를 따라 필요한 자식만 보기",
+      "intro": "도메인으로 범위를 좁힌 뒤 테이블을 클릭하세요. 화살표는 FK를 가진 자식에서 참조 대상으로 향합니다.",
+      "sections": [
+        {
+          "id": "database-map",
+          "title": "전체 관계도",
+          "lead": "모든 테이블은 신규 제안입니다. 연두는 선택, 파랑은 직접 연결입니다. 참조선은 FK 제안이며 개별 카디널리티는 상세 및 관계표에서 확인합니다.",
+          "erd": true
+        },
+        {
+          "id": "cardinality",
+          "title": "FK와 카디널리티",
+          "html": "<div class=\"table-wrap\"><table><thead><tr><th>부모/참조 대상</th><th>자식/참조 주체</th><th>컬럼</th><th>관계</th></tr></thead><tbody><tr><td>account</td><td>account_profile</td><td>id</td><td>1 : 0..1</td></tr><tr><td>account</td><td>account_identity</td><td>account_id</td><td>1 : 0..N</td></tr><tr><td>account</td><td>account_session</td><td>account_id</td><td>1 : 0..N</td></tr><tr><td>device</td><td>account_session</td><td>device_id</td><td>0..1 : 0..N</td></tr><tr><td>account</td><td>account_deletion</td><td>account_id</td><td>1 : 0..N</td></tr><tr><td>local_device</td><td>local_pin</td><td>id</td><td>1 : 0..1</td></tr><tr><td>local_device</td><td>local_recovery</td><td>local_device_id</td><td>1 : 0..N</td></tr><tr><td>local_device</td><td>local_preferences</td><td>id</td><td>1 : 0..1</td></tr><tr><td>workspace</td><td>workspace_profile</td><td>id</td><td>1 : 0..1</td></tr><tr><td>workspace</td><td>workspace_member</td><td>workspace_id</td><td>1 : 0..N</td></tr><tr><td>account</td><td>workspace_member</td><td>account_id</td><td>1 : 0..N</td></tr><tr><td>workspace</td><td>workspace_preferences</td><td>id</td><td>1 : 0..1</td></tr><tr><td>workspace</td><td>school</td><td>workspace_id</td><td>1 : 0..N</td></tr><tr><td>school</td><td>school_profile</td><td>id</td><td>1 : 0..1</td></tr><tr><td>school</td><td>school_public_source</td><td>school_id</td><td>1 : 0..N</td></tr><tr><td>subscription_plan</td><td>plan_entitlement</td><td>subscription_plan_id</td><td>1 : 0..N</td></tr><tr><td>account</td><td>subscription</td><td>account_id</td><td>1 : 0..N</td></tr><tr><td>subscription_plan</td><td>subscription</td><td>plan_id</td><td>1 : 0..N</td></tr><tr><td>subscription</td><td>subscription_term</td><td>subscription_id</td><td>1 : 0..N</td></tr><tr><td>subscription_plan</td><td>redemption_code</td><td>plan_id</td><td>1 : 0..N</td></tr><tr><td>redemption_code</td><td>code_redemption</td><td>redemption_code_id</td><td>1 : 0..N</td></tr><tr><td>account</td><td>code_redemption</td><td>account_id</td><td>1 : 0..N</td></tr><tr><td>subscription_term</td><td>code_redemption</td><td>term_id</td><td>1 : 0..N</td></tr><tr><td>workspace</td><td>student</td><td>workspace_id</td><td>1 : 0..N</td></tr><tr><td>student</td><td>student_profile</td><td>id</td><td>1 : 0..1</td></tr><tr><td>student</td><td>student_enrollment</td><td>student_id</td><td>1 : 0..N</td></tr><tr><td>school</td><td>student_enrollment</td><td>school_id</td><td>1 : 0..N</td></tr><tr><td>student</td><td>student_guardian</td><td>student_id</td><td>1 : 0..N</td></tr><tr><td>school</td><td>counseling_case</td><td>school_id</td><td>1 : 0..N</td></tr><tr><td>counseling_case</td><td>case_number</td><td>id</td><td>1 : 0..1</td></tr><tr><td>counseling_case</td><td>case_student</td><td>counseling_case_id</td><td>1 : 0..N</td></tr><tr><td>student</td><td>case_student</td><td>student_id</td><td>1 : 0..N</td></tr><tr><td>counseling_case</td><td>case_assessment</td><td>id</td><td>1 : 0..1</td></tr><tr><td>counseling_case</td><td>case_referral</td><td>id</td><td>1 : 0..1</td></tr><tr><td>counseling_case</td><td>case_status_event</td><td>counseling_case_id</td><td>1 : 0..N</td></tr><tr><td>school</td><td>case_number_policy</td><td>school_id</td><td>1 : 0..N</td></tr><tr><td>school</td><td>case_renumber_batch</td><td>school_id</td><td>1 : 0..N</td></tr><tr><td>case_renumber_batch</td><td>case_renumber_item</td><td>case_renumber_batch_id</td><td>1 : 0..N</td></tr><tr><td>counseling_case</td><td>case_renumber_item</td><td>case_id</td><td>1 : 0..N</td></tr><tr><td>workspace</td><td>concept_template</td><td>workspace_id</td><td>1 : 0..N</td></tr><tr><td>concept_template</td><td>concept_template_field</td><td>concept_template_id</td><td>1 : 0..N</td></tr><tr><td>counseling_case</td><td>case_concept</td><td>counseling_case_id</td><td>1 : 0..N</td></tr><tr><td>case_concept</td><td>case_concept_answer</td><td>case_concept_id</td><td>1 : 0..N</td></tr><tr><td>school</td><td>appointment</td><td>school_id</td><td>1 : 0..N</td></tr><tr><td>appointment</td><td>appointment_schedule</td><td>id</td><td>1 : 0..1</td></tr><tr><td>appointment</td><td>appointment_case</td><td>id</td><td>1 : 0..1</td></tr><tr><td>counseling_case</td><td>appointment_case</td><td>case_id</td><td>1 : 0..N</td></tr><tr><td>appointment</td><td>appointment_student</td><td>appointment_id</td><td>1 : 0..N</td></tr><tr><td>student</td><td>appointment_student</td><td>student_id</td><td>1 : 0..N</td></tr><tr><td>appointment</td><td>appointment_classification</td><td>id</td><td>1 : 0..1</td></tr><tr><td>appointment</td><td>appointment_record</td><td>id</td><td>1 : 0..1</td></tr><tr><td>appointment</td><td>appointment_neis</td><td>id</td><td>1 : 0..1</td></tr><tr><td>appointment</td><td>appointment_reminder</td><td>id</td><td>1 : 0..1</td></tr><tr><td>appointment</td><td>appointment_display</td><td>id</td><td>1 : 0..1</td></tr><tr><td>workspace</td><td>consent_template</td><td>workspace_id</td><td>1 : 0..N</td></tr><tr><td>consent_template</td><td>consent_template_content</td><td>id</td><td>1 : 0..1</td></tr><tr><td>consent_template</td><td>consent_template_field</td><td>consent_template_id</td><td>1 : 0..N</td></tr><tr><td>consent_template_field</td><td>consent_template_option</td><td>consent_template_field_id</td><td>1 : 0..N</td></tr><tr><td>counseling_case</td><td>consent_request</td><td>counseling_case_id</td><td>1 : 0..N</td></tr><tr><td>student</td><td>consent_request</td><td>student_id</td><td>1 : 0..N</td></tr><tr><td>consent_request</td><td>consent_document</td><td>id</td><td>1 : 0..1</td></tr><tr><td>consent_document</td><td>consent_document_field</td><td>consent_document_id</td><td>1 : 0..N</td></tr><tr><td>consent_document_field</td><td>consent_document_option</td><td>consent_document_field_id</td><td>1 : 0..N</td></tr><tr><td>consent_request</td><td>consent_delivery</td><td>consent_request_id</td><td>1 : 0..N</td></tr><tr><td>consent_delivery</td><td>consent_delivery_attempt</td><td>consent_delivery_id</td><td>1 : 0..N</td></tr><tr><td>consent_delivery</td><td>consent_response</td><td>id</td><td>1 : 0..1</td></tr><tr><td>consent_response</td><td>consent_answer</td><td>consent_response_id</td><td>1 : 0..N</td></tr><tr><td>consent_document_field</td><td>consent_answer</td><td>field_id</td><td>1 : 0..N</td></tr><tr><td>consent_answer</td><td>consent_answer_choice</td><td>consent_answer_id</td><td>1 : 0..N</td></tr><tr><td>consent_document_option</td><td>consent_answer_choice</td><td>option_id</td><td>1 : 0..N</td></tr><tr><td>consent_answer</td><td>consent_signature</td><td>id</td><td>1 : 0..1</td></tr><tr><td>file_asset</td><td>consent_signature</td><td>asset_id</td><td>0..1 : 0..N</td></tr><tr><td>consent_request</td><td>consent_event</td><td>consent_request_id</td><td>1 : 0..N</td></tr><tr><td>workspace</td><td>file_asset</td><td>workspace_id</td><td>1 : 0..N</td></tr><tr><td>art_activity</td><td>art_activity_content</td><td>id</td><td>1 : 0..1</td></tr><tr><td>student</td><td>artwork</td><td>student_id</td><td>1 : 0..N</td></tr><tr><td>school</td><td>artwork</td><td>school_id</td><td>1 : 0..N</td></tr><tr><td>art_activity</td><td>artwork</td><td>activity_id</td><td>1 : 0..N</td></tr><tr><td>artwork</td><td>artwork_image</td><td>id</td><td>1 : 0..1</td></tr><tr><td>file_asset</td><td>artwork_image</td><td>asset_id</td><td>1 : 0..N</td></tr><tr><td>artwork</td><td>artwork_reflection</td><td>id</td><td>1 : 0..1</td></tr><tr><td>school</td><td>school_timetable</td><td>school_id</td><td>1 : 0..N</td></tr><tr><td>school_timetable</td><td>timetable_period</td><td>school_timetable_id</td><td>1 : 0..N</td></tr><tr><td>school</td><td>school_meal</td><td>school_id</td><td>1 : 0..N</td></tr><tr><td>school_meal</td><td>school_meal_item</td><td>school_meal_id</td><td>1 : 0..N</td></tr><tr><td>school</td><td>archive</td><td>school_id</td><td>1 : 0..N</td></tr><tr><td>archive</td><td>archive_detail</td><td>id</td><td>1 : 0..1</td></tr><tr><td>archive</td><td>archive_case</td><td>archive_id</td><td>1 : 0..N</td></tr><tr><td>counseling_case</td><td>archive_case</td><td>case_id</td><td>1 : 0..N</td></tr><tr><td>archive</td><td>archive_transfer</td><td>archive_id</td><td>1 : 0..N</td></tr><tr><td>archive</td><td>archive_export</td><td>archive_id</td><td>1 : 0..N</td></tr><tr><td>file_asset</td><td>archive_export</td><td>asset_id</td><td>1 : 0..N</td></tr><tr><td>local_device</td><td>backup_run</td><td>local_device_id</td><td>1 : 0..N</td></tr><tr><td>workspace</td><td>audit_event</td><td>workspace_id</td><td>1 : 0..N</td></tr></tbody></table></div>"
+        }
+      ]
+    },
+    {
+      "label": "저장 흐름",
+      "title": "화면의 데이터를 어디에 저장하는가",
+      "intro": "현재 모델의 필드를 보존하되 기능별 테이블로 분리합니다.",
+      "sections": [
+        {
+          "id": "flows",
+          "title": "핵심 흐름별 저장",
+          "html": "<div class=\"table-wrap\"><table><thead><tr><th>사용 흐름</th><th>읽기·쓰기 테이블</th><th>처리 단위</th></tr></thead><tbody><tr><td>최초 설치·PIN</td><td>local_device → local_pin / local_recovery / local_preferences</td><td>잠금 세션은 영구 테이블 제외. 1시간 고정 만료, 앱 재시작 시 재입력.</td></tr><tr><td>구글/이메일 로그인</td><td>email_challenge → account → account_identity → account_session</td><td>이메일 OTP 1회 소비. 구글 신원 검증 뒤 계정 연결.</td></tr><tr><td>구독 코드</td><td>redemption_code → code_redemption → subscription / subscription_term</td><td>사용 횟수 차감과 기간 부여를 원자 처리. 실제 결제 테이블은 제외.</td></tr><tr><td>학생 등록</td><td>student → student_profile / student_enrollment / student_guardian</td><td>학생·학적 생성 트랜잭션. 이름 대신 UUID로 연결.</td></tr><tr><td>사례·상담 저장</td><td>counseling_case → case_* / appointment → appointment_*</td><td>사례 참여와 회기 참여를 별도 보존. 내부 기록과 나이스 문구 분리.</td></tr><tr><td>원격 동의</td><td>consent_request → document → delivery → response → answer</td><td>발송 시 문서 스냅샷. 재발송은 이전 링크 폐기, 기존 응답 보존.</td></tr><tr><td>시간표·급식</td><td>school_timetable → timetable_period / school_meal → school_meal_item</td><td>시간표는 정본, 급식은 재조회 가능한 캐시.</td></tr><tr><td>그림·기록물</td><td>artwork → artwork_image → file_asset / archive → archive_export</td><td>이미지는 파일 저장소, DB는 메타데이터·해시·관계 보관.</td></tr></tbody></table></div>"
+        },
+        {
+          "id": "mapping",
+          "title": "현재 타입과의 대응",
+          "html": "<div class=\"table-wrap\"><table><thead><tr><th>현재 모델</th><th>저장 대상</th></tr></thead><tbody><tr><td>account.logged / subscribed</td><td>account_session 유효성 / subscription_term + plan_entitlement 조회로 대체</td></tr><tr><td>School</td><td>school + school_profile + school_timetable / school_public_source</td></tr><tr><td>Pupil + Enrollment</td><td>student + student_profile + student_enrollment + student_guardian</td></tr><tr><td>CaseRecord</td><td>counseling_case + case_number + case_student + case_assessment + case_referral + case_status_event</td></tr><tr><td>Concept / templates</td><td>case_concept + case_concept_answer / concept_template + concept_template_field</td></tr><tr><td>Meeting</td><td>appointment + schedule / case / student / classification / record / neis / reminder / display</td></tr><tr><td>ConsentTemplate</td><td>consent_template + content / field / option</td></tr><tr><td>Consent</td><td>consent_request + document / document_field / option + delivery + response + answer / choice / signature + event</td></tr><tr><td>Drawing</td><td>artwork + artwork_image + artwork_reflection + file_asset + art_activity</td></tr><tr><td>Preferences</td><td>workspace_profile / workspace_preferences / local_preferences</td></tr><tr><td>Archive</td><td>archive + archive_detail + archive_case + archive_transfer + archive_export</td></tr><tr><td>numberHistory / numberPattern</td><td>case_renumber_batch + case_renumber_item / case_number_policy</td></tr><tr><td>PIN / recovery / expiresAt</td><td>local_pin / local_recovery / 런타임 세션(영구 테이블 제외)</td></tr></tbody></table></div>"
+        },
+        {
+          "id": "constraints",
+          "title": "무결성과 조회 규칙",
+          "html": "<ul><li>타입은 DB 독립 논리 타입입니다. uuid, text, integer, boolean, date, time, timestamp, json을 사용하며 timestamp는 UTC 저장을 전제합니다. 실제 PostgreSQL/SQLite 매핑은 구현 시 결정합니다.</li><li>모든 PK는 UUID, created_at은 필수입니다. NULL 표기가 없으면 NOT NULL. UK는 단일 UNIQUE, 복합 UNIQUE와 업무 CHECK는 테이블 상세에 있습니다.</li><li>부모 1 → 단일 확장 0..1, 부모 1 → 목록 0..N입니다. 핵심 프로필을 생성 시 필수로 만드는 규칙은 애플리케이션 트랜잭션으로 보장합니다. nullable FK는 대상 0..1입니다.</li><li>기본 삭제는 RESTRICT입니다. 소유 자식의 CASCADE는 해당 aggregate 영구 삭제 시에만 허용합니다. 계정→공간, 양식→발송 문서처럼 보존 경계가 다른 자료는 연쇄 삭제하지 않습니다.</li><li>workspace 범위는 루트에서 유도하며 자식마다 중복 복사하지 않습니다. 연결 테이블의 양쪽 공간/학교 일치는 서비스 트랜잭션과 DB 트리거로 검증합니다. FK만으로 테넌트 일치가 보장되는 것은 아닙니다.</li><li>모든 FK에 인덱스. 주요 목록은 school+상태, student+학년도, 일정 기간, delivery.token_hash, account_identity(provider,subject) 중심으로 인덱스를 설계합니다. 부모 조인을 포함하는 유일성은 상세 규칙에 따라 트리거 또는 제약 가능한 번호 할당 구조로 구현해야 합니다.</li><li>통계·오늘의 상담·최근 기록·장기 미접촉은 조회 결과이며 별도 정본 테이블을 만들지 않습니다. activeSchoolId, 화면 탭, 검색어, 모달, 토스트도 업무 테이블에서 제외합니다.</li><li>읽기 전용 화면 모델은 JOIN/VIEW로 합성합니다. 도메인 원본을 거대한 JSON 컬럼 하나로 숨기지 않습니다. json은 PIN KDF 파라미터처럼 구조가 가변인 기술 설정에만 사용합니다.</li></ul>"
+        }
+      ]
+    },
+    {
+      "label": "도입 계획",
+      "title": "기능별로 연결하고 검증하기",
+      "intro": "물리 DB 선정과 저장 위치를 확정한 뒤 도메인 단위로 도입합니다.",
+      "sections": [
+        {
+          "id": "migration",
+          "title": "적용·이관·롤백",
+          "html": "<ol><li>저장 위치·계정 소유권·보존 정책을 확정합니다. 이 문서는 설계 산출물이며 DB나 앱 저장 코드를 변경하지 않았습니다.</li><li>계정/설치/공간 루트, 프로필과 멤버십부터 생성합니다. 같은 배치 안에서 FK 대상 순서로 생성하고 순환 참조는 만들지 않습니다.</li><li>학교·학생 → 사례·번호 → 일정·기록 → 양식·문서·발송·응답 → 작품·기록물 순으로 기능 단위 연결합니다. 로컬 PIN은 별도 마이그레이션 경계로 관리합니다.</li><li>Zustand는 UI 상태와 조회 캐시로 유지하고 저장은 repository/service 경유로 옮깁니다. 저장 성공 후 캐시 갱신, 실패 시 토스트와 재시도를 제공합니다.</li><li>기존 lowdb JSON을 백업한 뒤 별도 임포터로 학생·상담·그림을 매핑합니다. 현재 메모리 시연 데이터는 사용자 실자료로 자동 이관하지 않습니다. 로컬 PIN 프로토타입 해시는 운영 전환 시 재등록 정책을 정합니다.</li><li>로그인 만료·재실행 복원·학교 간 격리·중복 코드 사용·동의서 재발송·동시 번호 발급·백업 복원을 검증합니다.</li><li>롤백은 이전 앱/읽기 경로와 백업을 보존하고 신규 쓰기를 중단한 뒤 복원합니다. 운영 자료가 쌓인 자식 테이블은 즉시 DROP하지 않고 내보내기·참조 제거·읽기 전환 후 폐기합니다.</li></ol>"
+        },
+        {
+          "id": "decisions",
+          "title": "구현 전에 확정할 사항",
+          "html": "<div class=\"table-wrap\"><table><thead><tr><th>결정할 항목</th><th>현재 설계 가정</th></tr></thead><tbody><tr><td>상담 원본 저장 위치</td><td>논리 모델은 하나의 업무 DB. 로컬 우선인지 서버 중심인지 구현 전 확정 필요.</td></tr><tr><td>로그인 전 이용</td><td>현재 PIN 온보딩을 유지. 계정 없이 만든 로컬 공간을 계정에 연결하는 정책 필요.</td></tr><tr><td>공동 사용·구독 귀속</td><td>workspace_member로 협업 확장 가능. 현재 UI에 따라 구독은 계정 귀속.</td></tr><tr><td>실제 결제</td><td>요청 범위는 버튼/코드 구독. 결제수단·주문·청구서·환불 테이블 제외.</td></tr><tr><td>급식 제공자</td><td>school_public_source와 캐시만 제안. 키 및 응답 규격 제공 후 확정.</td></tr><tr><td>암호화·보존</td><td>PIN은 앱 잠금. 상담 원문 암호화 키와 접근·보존 정책은 별도 설계 필요.</td></tr><tr><td>공지·가져오기</td><td>현재 정적 공지는 콘텐츠 파일 유지. 지속적인 배치 이력·학생정보 원격 요청은 실제 서버 기능 정의 후 별도 aggregate 추가.</td></tr></tbody></table></div>"
+        },
+        {
+          "id": "changes",
+          "title": "테이블별 변경 요약",
+          "html": "<div class=\"table-wrap\"><table><thead><tr><th>상태</th><th>테이블</th><th>책임</th></tr></thead><tbody><tr><td>신규 · 핵심</td><td>account</td><td>서비스 이용 주체의 식별과 수명만 관리합니다.</td></tr><tr><td>신규 · 핵심</td><td>account_profile</td><td>이름과 개인 연락처. 인증 수단과 별도로 변경합니다.</td></tr><tr><td>신규 · 핵심</td><td>account_identity</td><td>구글 또는 이메일 인증 수단을 계정에 연결합니다.</td></tr><tr><td>신규 · 핵심</td><td>email_challenge</td><td>로그인 전 이메일 인증 요청. 아직 계정이 없어도 생성할 수 있습니다.</td></tr><tr><td>신규 · 핵심</td><td>account_session</td><td>계정 로그인 세션. 기기 PIN 잠금 세션과 다릅니다.</td></tr><tr><td>신규 · 핵심</td><td>device</td><td>서버에 등록된 앱 설치 식별자. PIN 비밀은 갖지 않습니다.</td></tr><tr><td>신규 · 운영 확장</td><td>account_deletion</td><td>계정 탈퇴 요청과 처리 상태를 별도 관리합니다.</td></tr><tr><td>신규 · 핵심</td><td>local_device</td><td>로그인 전에도 존재하는 로컬 앱 설치 루트.</td></tr><tr><td>신규 · 핵심</td><td>local_pin</td><td>이 기기의 앱 잠금 설정과 실패 제한.</td></tr><tr><td>신규 · 핵심</td><td>local_recovery</td><td>PIN 복구 코드의 발급·폐기 이력.</td></tr><tr><td>신규 · 핵심</td><td>local_preferences</td><td>기기별 폴더와 백업·표시 설정.</td></tr><tr><td>신규 · 핵심</td><td>workspace</td><td>상담 자료의 소유·접근 경계입니다. 학교와 계정에 종속되지 않는 루트.</td></tr><tr><td>신규 · 핵심</td><td>workspace_profile</td><td>상담실 표시 이름과 담당자 기본 정보.</td></tr><tr><td>신규 · 핵심</td><td>workspace_member</td><td>계정의 공간 접근 권한. 구독 자격과 분리합니다.</td></tr><tr><td>신규 · 핵심</td><td>workspace_preferences</td><td>학년도와 상담 기본 분류.</td></tr><tr><td>신규 · 핵심</td><td>school</td><td>상담 공간이 관리하는 학교의 식별과 상태.</td></tr><tr><td>신규 · 핵심</td><td>school_profile</td><td>학교 표시 및 연락 정보.</td></tr><tr><td>신규 · 핵심</td><td>school_public_source</td><td>급식 API 조회에 사용하는 외부 학교 식별자.</td></tr><tr><td>신규 · 핵심</td><td>subscription_plan</td><td>구독 상품 식별.</td></tr><tr><td>신규 · 핵심</td><td>plan_entitlement</td><td>상품별 이용 가능 기능.</td></tr><tr><td>신규 · 핵심</td><td>subscription</td><td>계정이 보유한 구독 관계.</td></tr><tr><td>신규 · 핵심</td><td>subscription_term</td><td>사용 가능한 기간과 부여 사유.</td></tr><tr><td>신규 · 핵심</td><td>redemption_code</td><td>구독 코드의 발급 정책.</td></tr><tr><td>신규 · 핵심</td><td>code_redemption</td><td>구독 코드 사용 결과.</td></tr><tr><td>신규 · 핵심</td><td>student</td><td>공간 안에서 학생을 식별합니다. 학년 변경과 무관한 ID.</td></tr><tr><td>신규 · 핵심</td><td>student_profile</td><td>학생 기본 인적 정보.</td></tr><tr><td>신규 · 핵심</td><td>student_enrollment</td><td>학년도별 학교·학급 이력.</td></tr><tr><td>신규 · 핵심</td><td>student_guardian</td><td>학생별 보호자와 연락처. 형제간 자동 동일인 병합을 하지 않습니다.</td></tr><tr><td>신규 · 핵심</td><td>counseling_case</td><td>학교에서 진행하는 사례의 식별과 생명주기.</td></tr><tr><td>신규 · 핵심</td><td>case_number</td><td>학년도별 사례 번호.</td></tr><tr><td>신규 · 핵심</td><td>case_student</td><td>집단 사례를 포함한 참여 학생 연결.</td></tr><tr><td>신규 · 핵심</td><td>case_assessment</td><td>사례의 주호소·목표·교사 의견과 비고.</td></tr><tr><td>신규 · 핵심</td><td>case_referral</td><td>의뢰인의 역할과 연락처.</td></tr><tr><td>신규 · 핵심</td><td>case_status_event</td><td>종결·재개를 덮어쓰지 않고 이력으로 보관합니다.</td></tr><tr><td>신규 · 핵심</td><td>case_number_policy</td><td>학교별 번호 규칙과 발급 카운터.</td></tr><tr><td>신규 · 핵심</td><td>case_renumber_batch</td><td>번호 정리 작업 단위.</td></tr><tr><td>신규 · 핵심</td><td>case_renumber_item</td><td>사례별 변경 전후 번호.</td></tr><tr><td>신규 · 핵심</td><td>concept_template</td><td>공간별 사례개념화 양식.</td></tr><tr><td>신규 · 핵심</td><td>concept_template_field</td><td>양식 항목과 표시 순서.</td></tr><tr><td>신규 · 핵심</td><td>case_concept</td><td>사례개념화 작성 단위.</td></tr><tr><td>신규 · 핵심</td><td>case_concept_answer</td><td>작성 당시 항목과 내용.</td></tr><tr><td>신규 · 핵심</td><td>appointment</td><td>학교 일정의 식별과 상태. 사례 없는 일반 일정도 허용합니다.</td></tr><tr><td>신규 · 핵심</td><td>appointment_schedule</td><td>일시·제목·장소.</td></tr><tr><td>신규 · 핵심</td><td>appointment_case</td><td>일정과 사례의 선택적 연결.</td></tr><tr><td>신규 · 핵심</td><td>appointment_student</td><td>해당 회기의 실제 참여 학생.</td></tr><tr><td>신규 · 핵심</td><td>appointment_classification</td><td>상담 분류와 방식.</td></tr><tr><td>신규 · 핵심</td><td>appointment_record</td><td>내부 상담 기록.</td></tr><tr><td>신규 · 핵심</td><td>appointment_neis</td><td>나이스 제출용 문구. 내부 기록과 분리합니다.</td></tr><tr><td>신규 · 핵심</td><td>appointment_reminder</td><td>일정 알림 설정.</td></tr><tr><td>신규 · 핵심</td><td>appointment_display</td><td>캘린더 표현 속성.</td></tr><tr><td>신규 · 핵심</td><td>consent_template</td><td>공간별 동의서 양식 식별.</td></tr><tr><td>신규 · 핵심</td><td>consent_template_content</td><td>양식 제목과 안내 본문.</td></tr><tr><td>신규 · 핵심</td><td>consent_template_field</td><td>6가지 입력 유형의 항목 정의.</td></tr><tr><td>신규 · 핵심</td><td>consent_template_option</td><td>선택형 항목의 보기.</td></tr><tr><td>신규 · 핵심</td><td>consent_request</td><td>특정 사례의 특정 학생에게 받는 동의 요청.</td></tr><tr><td>신규 · 핵심</td><td>consent_document</td><td>발송 당시 본문. 발송 후 수정하지 않습니다.</td></tr><tr><td>신규 · 핵심</td><td>consent_document_field</td><td>발송 당시 필드 정의. 원본 템플릿과 독립.</td></tr><tr><td>신규 · 핵심</td><td>consent_document_option</td><td>발송 당시 선택 항목.</td></tr><tr><td>신규 · 핵심</td><td>consent_delivery</td><td>발송·재발송 차수별 수신인과 만료.</td></tr><tr><td>신규 · 문자 연동</td><td>consent_delivery_attempt</td><td>문자 제공자 전송 시도와 결과.</td></tr><tr><td>신규 · 핵심</td><td>consent_response</td><td>발송 차수에 대한 학부모 최종 제출.</td></tr><tr><td>신규 · 핵심</td><td>consent_answer</td><td>발송 문항별 답변.</td></tr><tr><td>신규 · 핵심</td><td>consent_answer_choice</td><td>선택형의 단일·복수 선택 값.</td></tr><tr><td>신규 · 핵심</td><td>consent_signature</td><td>이미지 또는 이름 입력 방식의 서명.</td></tr><tr><td>신규 · 핵심</td><td>consent_event</td><td>요청 작성·발송·수신·만료 처리 기록.</td></tr><tr><td>신규 · 핵심</td><td>file_asset</td><td>파일 저장 위치와 무결성 메타데이터.</td></tr><tr><td>신규 · 핵심</td><td>art_activity</td><td>그림 활동 카탈로그.</td></tr><tr><td>신규 · 핵심</td><td>art_activity_content</td><td>활동의 안내·표현 속성.</td></tr><tr><td>신규 · 핵심</td><td>artwork</td><td>학생이 남긴 작품 식별.</td></tr><tr><td>신규 · 핵심</td><td>artwork_image</td><td>작품의 이미지 파일.</td></tr><tr><td>신규 · 핵심</td><td>artwork_reflection</td><td>작품에 남긴 성찰 메모.</td></tr><tr><td>신규 · 핵심</td><td>school_timetable</td><td>학교 시간표의 적용 단위.</td></tr><tr><td>신규 · 핵심</td><td>timetable_period</td><td>교시와 점심 시간.</td></tr><tr><td>신규 · 급식 API 연동</td><td>school_meal</td><td>날짜·식사 구분별 급식 조회 캐시.</td></tr><tr><td>신규 · 급식 API 연동</td><td>school_meal_item</td><td>메뉴 항목.</td></tr><tr><td>신규 · 핵심</td><td>archive</td><td>학교 기록물철 식별과 상태.</td></tr><tr><td>신규 · 핵심</td><td>archive_detail</td><td>기록물철의 제목·학년도·메모.</td></tr><tr><td>신규 · 핵심</td><td>archive_case</td><td>확정할 사례의 명시적 목록.</td></tr><tr><td>신규 · 핵심</td><td>archive_transfer</td><td>수신처와 이관·연장 처리 이력.</td></tr><tr><td>신규 · 실제 출력 연동</td><td>archive_export</td><td>확정 당시의 기록물 산출물.</td></tr><tr><td>신규 · 백업 연동</td><td>backup_run</td><td>백업 실행 결과. 기기 경로를 서버 업무 정보와 분리.</td></tr><tr><td>신규 · 운영 확장</td><td>audit_event</td><td>자료 접근·내보내기 등 운영 감사 로그.</td></tr></tbody></table></div>"
+        }
+      ]
+    }
+  ],
+  "schema": [
+    {
+      "name": "account",
+      "group": "01 계정·인증",
+      "fields": [
+        "id : uuid · PK",
+        "status : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [],
+      "detailHtml": "<p>서비스 이용 주체의 식별과 수명만 관리합니다.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: 독립 도메인 루트.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/AccountPanel.tsx</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "account_profile",
+      "group": "01 계정·인증",
+      "fields": [
+        "id : uuid · PK, FK → account.id",
+        "display_name : text · NOT NULL",
+        "contact_email : text · NULL",
+        "phone : text · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "account"
+      ],
+      "detailHtml": "<p>이름과 개인 연락처. 인증 수단과 별도로 변경합니다.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: account.</p><p>소유 관계: account 1 → account_profile 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "account_identity",
+      "group": "01 계정·인증",
+      "fields": [
+        "id : uuid · PK",
+        "account_id : uuid · FK → account.id",
+        "provider : text · NOT NULL",
+        "subject : text · NOT NULL",
+        "verified_at : timestamp · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "account"
+      ],
+      "detailHtml": "<p>구글 또는 이메일 인증 수단을 계정에 연결합니다.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: account.</p><p>소유 관계: account 1 → account_identity 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> UNIQUE(provider, subject). 이메일은 정규화한 주소, Google은 검증된 subject. 동일 이메일이라는 이유만으로 자동 계정 병합하지 않습니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "email_challenge",
+      "group": "01 계정·인증",
+      "fields": [
+        "id : uuid · PK",
+        "email : text · NOT NULL",
+        "purpose : text · NOT NULL",
+        "code_hash : text · NOT NULL",
+        "expires_at : timestamp · NOT NULL",
+        "consumed_at : timestamp · NULL",
+        "attempts : integer · NOT NULL",
+        "blocked_until : timestamp · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [],
+      "detailHtml": "<p>로그인 전 이메일 인증 요청. 아직 계정이 없어도 생성할 수 있습니다.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: 독립 도메인 루트.</p><p><strong>제약·처리:</strong> code 원문 저장 금지. 유효기간·시도 횟수 확인과 consumed_at 갱신은 원자적으로 처리.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/AccountPanel.tsx</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "account_session",
+      "group": "01 계정·인증",
+      "fields": [
+        "id : uuid · PK",
+        "account_id : uuid · FK → account.id",
+        "refresh_hash : text · UK",
+        "expires_at : timestamp · NOT NULL",
+        "revoked_at : timestamp · NULL",
+        "last_used_at : timestamp · NULL",
+        "device_id : uuid · FK, NULL → device.id",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "account",
+        "device"
+      ],
+      "detailHtml": "<p>계정 로그인 세션. 기기 PIN 잠금 세션과 다릅니다.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: account.</p><p>소유 관계: account 1 → account_session 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> refresh_hash UNIQUE. 갱신 토큰 교체·폐기는 트랜잭션 처리. 계정 세션 기간은 별도 정책 미정; PIN의 1시간을 자동 적용하지 않습니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "device",
+      "group": "01 계정·인증",
+      "fields": [
+        "id : uuid · PK",
+        "installation_key : text · UK",
+        "platform : text · NOT NULL",
+        "revoked_at : timestamp · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [],
+      "detailHtml": "<p>서버에 등록된 앱 설치 식별자. PIN 비밀은 갖지 않습니다.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: 독립 도메인 루트.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "account_deletion",
+      "group": "01 계정·인증",
+      "fields": [
+        "id : uuid · PK",
+        "account_id : uuid · FK → account.id",
+        "requested_at : timestamp · NOT NULL",
+        "state : text · NOT NULL",
+        "completed_at : timestamp · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "account"
+      ],
+      "detailHtml": "<p>계정 탈퇴 요청과 처리 상태를 별도 관리합니다.</p><p><strong>상태:</strong> 신규 제안 · 운영 확장. 부모: account.</p><p>소유 관계: account 1 → account_deletion 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> 탈퇴는 상담 자료 삭제와 분리. 업무 공간 이관·잔여 소유권 확인 후 처리.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "local_device",
+      "group": "02 기기 PIN · 로컬 전용",
+      "fields": [
+        "id : uuid · PK",
+        "installation_key : text · UK",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [],
+      "detailHtml": "<p>로그인 전에도 존재하는 로컬 앱 설치 루트.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: 독립 도메인 루트.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/auth.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "local_pin",
+      "group": "02 기기 PIN · 로컬 전용",
+      "fields": [
+        "id : uuid · PK, FK → local_device.id",
+        "verifier : text · NOT NULL",
+        "salt : text · NOT NULL",
+        "kdf_parameters : json · NOT NULL",
+        "failed_attempts : integer · NOT NULL",
+        "blocked_until : timestamp · NULL",
+        "changed_at : timestamp · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "local_device"
+      ],
+      "detailHtml": "<p>이 기기의 앱 잠금 설정과 실패 제한.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: local_device.</p><p>소유 관계: local_device 1 → local_pin 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> PIN 원문 저장 금지. 현재 SHA-256 프로토타입을 그대로 운영 인증으로 간주하지 않습니다. 메인 프로세스·OS 보안 저장소 연계는 구현 시 결정.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/auth.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "local_recovery",
+      "group": "02 기기 PIN · 로컬 전용",
+      "fields": [
+        "id : uuid · PK",
+        "local_device_id : uuid · FK → local_device.id",
+        "code_hash : text · UK",
+        "revoked_at : timestamp · NULL",
+        "used_at : timestamp · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "local_device"
+      ],
+      "detailHtml": "<p>PIN 복구 코드의 발급·폐기 이력.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: local_device.</p><p>소유 관계: local_device 1 → local_recovery 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> 활성 코드 1개. 사용 시 폐기하고 재발급하는 정책 제안. 현재 코드의 반복 사용 동작과 차이 명시.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/auth.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "local_preferences",
+      "group": "02 기기 PIN · 로컬 전용",
+      "fields": [
+        "id : uuid · PK, FK → local_device.id",
+        "document_folder : text · NULL",
+        "theme : text · NOT NULL",
+        "auto_lock_minutes : integer · NOT NULL",
+        "auto_backup : boolean · NOT NULL",
+        "backup_time : time · NULL",
+        "backup_retention_days : integer · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "local_device"
+      ],
+      "detailHtml": "<p>기기별 폴더와 백업·표시 설정.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: local_device.</p><p>소유 관계: local_device 1 → local_preferences 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> PIN 유효기간 1시간과 자동 잠금 유휴시간은 별개. 잠금 해제 세션은 런타임 메모리/같은 창 sessionStorage에서만 유지하고 영구 테이블에 저장하지 않습니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "workspace",
+      "group": "03 상담 공간·설정",
+      "fields": [
+        "id : uuid · PK",
+        "status : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [],
+      "detailHtml": "<p>상담 자료의 소유·접근 경계입니다. 학교와 계정에 종속되지 않는 루트.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: 독립 도메인 루트.</p><p><strong>제약·처리:</strong> 한 workspace 안의 데이터만 함께 조회. 업무 자료 FK는 같은 workspace인지 검증. 계정 탈퇴가 workspace 삭제로 연쇄되지 않음.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "workspace_profile",
+      "group": "03 상담 공간·설정",
+      "fields": [
+        "id : uuid · PK, FK → workspace.id",
+        "name : text · NOT NULL",
+        "counselor_name : text · NOT NULL",
+        "affiliation : text · NOT NULL",
+        "email : text · NULL",
+        "phone : text · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "workspace"
+      ],
+      "detailHtml": "<p>상담실 표시 이름과 담당자 기본 정보.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: workspace.</p><p>소유 관계: workspace 1 → workspace_profile 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "workspace_member",
+      "group": "03 상담 공간·설정",
+      "fields": [
+        "id : uuid · PK",
+        "workspace_id : uuid · FK → workspace.id",
+        "role : text · NOT NULL",
+        "status : text · NOT NULL",
+        "account_id : uuid · FK → account.id",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "workspace",
+        "account"
+      ],
+      "detailHtml": "<p>계정의 공간 접근 권한. 구독 자격과 분리합니다.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: workspace.</p><p>소유 관계: workspace 1 → workspace_member 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> UNIQUE(workspace_id, account_id). 소유자 없는 서버 공간은 만들지 않음. 최초 로컬 공간은 계정 연결 시 소유자 등록.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "workspace_preferences",
+      "group": "03 상담 공간·설정",
+      "fields": [
+        "id : uuid · PK, FK → workspace.id",
+        "school_year : integer · NOT NULL",
+        "default_classification : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "workspace"
+      ],
+      "detailHtml": "<p>학년도와 상담 기본 분류.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: workspace.</p><p>소유 관계: workspace 1 → workspace_preferences 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "school",
+      "group": "03 상담 공간·설정",
+      "fields": [
+        "id : uuid · PK",
+        "workspace_id : uuid · FK → workspace.id",
+        "status : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "workspace"
+      ],
+      "detailHtml": "<p>상담 공간이 관리하는 학교의 식별과 상태.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: workspace.</p><p>소유 관계: workspace 1 → school 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "school_profile",
+      "group": "03 상담 공간·설정",
+      "fields": [
+        "id : uuid · PK, FK → school.id",
+        "name : text · NOT NULL",
+        "school_type : text · NOT NULL",
+        "wee_class : text · NOT NULL",
+        "phone : text · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "school"
+      ],
+      "detailHtml": "<p>학교 표시 및 연락 정보.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: school.</p><p>소유 관계: school 1 → school_profile 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "school_public_source",
+      "group": "03 상담 공간·설정",
+      "fields": [
+        "id : uuid · PK",
+        "school_id : uuid · FK → school.id",
+        "provider : text · NOT NULL",
+        "office_code : text · NOT NULL",
+        "school_code : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "school"
+      ],
+      "detailHtml": "<p>급식 API 조회에 사용하는 외부 학교 식별자.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: school.</p><p>소유 관계: school 1 → school_public_source 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> UNIQUE(school_id, provider). API 비밀키는 테이블이 아닌 서버 환경/비밀 저장소에서 관리. API 제공자·실제 코드 규격은 키 제공 후 확정.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "subscription_plan",
+      "group": "04 구독",
+      "fields": [
+        "id : uuid · PK",
+        "code : text · UK",
+        "name : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [],
+      "detailHtml": "<p>구독 상품 식별.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: 독립 도메인 루트.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/AccountPanel.tsx</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "plan_entitlement",
+      "group": "04 구독",
+      "fields": [
+        "id : uuid · PK",
+        "subscription_plan_id : uuid · FK → subscription_plan.id",
+        "feature_code : text · NOT NULL",
+        "limit_value : integer · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "subscription_plan"
+      ],
+      "detailHtml": "<p>상품별 이용 가능 기능.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: subscription_plan.</p><p>소유 관계: subscription_plan 1 → plan_entitlement 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> UNIQUE(subscription_plan_id, feature_code). 기능 삭제 시 계정·플랜 루트 수정 불필요.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "subscription",
+      "group": "04 구독",
+      "fields": [
+        "id : uuid · PK",
+        "account_id : uuid · FK → account.id",
+        "status : text · NOT NULL",
+        "plan_id : uuid · FK → subscription_plan.id",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "account",
+        "subscription_plan"
+      ],
+      "detailHtml": "<p>계정이 보유한 구독 관계.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: account.</p><p>소유 관계: account 1 → subscription 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> 현재 UI에 맞춰 계정 귀속. 학교/공간 과금으로 바꾸면 별도 구독 배정 자식으로 확장.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "subscription_term",
+      "group": "04 구독",
+      "fields": [
+        "id : uuid · PK",
+        "subscription_id : uuid · FK → subscription.id",
+        "starts_at : timestamp · NOT NULL",
+        "ends_at : timestamp · NOT NULL",
+        "source : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "subscription"
+      ],
+      "detailHtml": "<p>사용 가능한 기간과 부여 사유.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: subscription.</p><p>소유 관계: subscription 1 → subscription_term 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> ends_at &gt; starts_at. 현재 시각의 유효 기간으로 이용권 판정; subscribed 불리언을 별도 정본으로 저장하지 않음.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "redemption_code",
+      "group": "04 구독",
+      "fields": [
+        "id : uuid · PK",
+        "code_hash : text · UK",
+        "duration_days : integer · NOT NULL",
+        "expires_at : timestamp · NOT NULL",
+        "max_uses : integer · NOT NULL",
+        "disabled_at : timestamp · NULL",
+        "plan_id : uuid · FK → subscription_plan.id",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "subscription_plan"
+      ],
+      "detailHtml": "<p>구독 코드의 발급 정책.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: 독립 도메인 루트.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "code_redemption",
+      "group": "04 구독",
+      "fields": [
+        "id : uuid · PK",
+        "redemption_code_id : uuid · FK → redemption_code.id",
+        "redeemed_at : timestamp · NOT NULL",
+        "account_id : uuid · FK → account.id",
+        "term_id : uuid · FK → subscription_term.id",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "redemption_code",
+        "account",
+        "subscription_term"
+      ],
+      "detailHtml": "<p>구독 코드 사용 결과.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: redemption_code.</p><p>소유 관계: redemption_code 1 → code_redemption 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> UNIQUE(redemption_code_id, account_id), UNIQUE(term_id). 코드 사용량 확인·기간 생성·사용 기록 삽입을 하나의 트랜잭션으로 처리.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "student",
+      "group": "05 학생",
+      "fields": [
+        "id : uuid · PK",
+        "workspace_id : uuid · FK → workspace.id",
+        "status : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "workspace"
+      ],
+      "detailHtml": "<p>공간 안에서 학생을 식별합니다. 학년 변경과 무관한 ID.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: workspace.</p><p>소유 관계: workspace 1 → student 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "student_profile",
+      "group": "05 학생",
+      "fields": [
+        "id : uuid · PK, FK → student.id",
+        "name : text · NOT NULL",
+        "gender : text · NOT NULL",
+        "contact : text · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "student"
+      ],
+      "detailHtml": "<p>학생 기본 인적 정보.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: student.</p><p>소유 관계: student 1 → student_profile 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "student_enrollment",
+      "group": "05 학생",
+      "fields": [
+        "id : uuid · PK",
+        "student_id : uuid · FK → student.id",
+        "school_year : integer · NOT NULL",
+        "grade : integer · NOT NULL",
+        "classroom : text · NOT NULL",
+        "student_number : integer · NOT NULL",
+        "status : text · NOT NULL",
+        "effective_from : date · NOT NULL",
+        "effective_to : date · NULL",
+        "school_id : uuid · FK → school.id",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "student",
+        "school"
+      ],
+      "detailHtml": "<p>학년도별 학교·학급 이력.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: student.</p><p>소유 관계: student 1 → student_enrollment 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> 같은 학생의 유효기간이 겹치는 활성 학적 금지. 연도 내 전학도 허용. 학교·학생 workspace 동일; 단순 UNIQUE(student,year)는 사용하지 않음.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "student_guardian",
+      "group": "05 학생",
+      "fields": [
+        "id : uuid · PK",
+        "student_id : uuid · FK → student.id",
+        "name : text · NOT NULL",
+        "relationship : text · NOT NULL",
+        "phone : text · NOT NULL",
+        "is_primary : boolean · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "student"
+      ],
+      "detailHtml": "<p>학생별 보호자와 연락처. 형제간 자동 동일인 병합을 하지 않습니다.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: student.</p><p>소유 관계: student 1 → student_guardian 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> 학생별 기본 보호자 최대 1명. 현재 단일 guardianName/Relation/Contact를 1:N으로 확장.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "counseling_case",
+      "group": "06 사례",
+      "fields": [
+        "id : uuid · PK",
+        "school_id : uuid · FK → school.id",
+        "status : text · NOT NULL",
+        "opened_at : date · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "school"
+      ],
+      "detailHtml": "<p>학교에서 진행하는 사례의 식별과 생명주기.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: school.</p><p>소유 관계: school 1 → counseling_case 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "case_number",
+      "group": "06 사례",
+      "fields": [
+        "id : uuid · PK, FK → counseling_case.id",
+        "school_year : integer · NOT NULL",
+        "number : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "counseling_case"
+      ],
+      "detailHtml": "<p>학년도별 사례 번호.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: counseling_case.</p><p>소유 관계: counseling_case 1 → case_number 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> 학교+학년도+번호 유일. 학교는 부모에서 유도; 구현 시 트리거 또는 학교 범위 일련번호 할당 서비스와 유일성 제약을 함께 확정.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "case_student",
+      "group": "06 사례",
+      "fields": [
+        "id : uuid · PK",
+        "counseling_case_id : uuid · FK → counseling_case.id",
+        "student_id : uuid · FK → student.id",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "counseling_case",
+        "student"
+      ],
+      "detailHtml": "<p>집단 사례를 포함한 참여 학생 연결.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: counseling_case.</p><p>소유 관계: counseling_case 1 → case_student 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> UNIQUE(counseling_case_id, student_id). 학생과 사례의 workspace 동일.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "case_assessment",
+      "group": "06 사례",
+      "fields": [
+        "id : uuid · PK, FK → counseling_case.id",
+        "complaint : text · NOT NULL",
+        "goal : text · NOT NULL",
+        "teacher_opinion : text · NULL",
+        "notes : text · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "counseling_case"
+      ],
+      "detailHtml": "<p>사례의 주호소·목표·교사 의견과 비고.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: counseling_case.</p><p>소유 관계: counseling_case 1 → case_assessment 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "case_referral",
+      "group": "06 사례",
+      "fields": [
+        "id : uuid · PK, FK → counseling_case.id",
+        "name : text · NOT NULL",
+        "role : text · NOT NULL",
+        "contact : text · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "counseling_case"
+      ],
+      "detailHtml": "<p>의뢰인의 역할과 연락처.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: counseling_case.</p><p>소유 관계: counseling_case 1 → case_referral 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "case_status_event",
+      "group": "06 사례",
+      "fields": [
+        "id : uuid · PK",
+        "counseling_case_id : uuid · FK → counseling_case.id",
+        "from_status : text · NOT NULL",
+        "to_status : text · NOT NULL",
+        "reason : text · NULL",
+        "occurred_at : timestamp · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "counseling_case"
+      ],
+      "detailHtml": "<p>종결·재개를 덮어쓰지 않고 이력으로 보관합니다.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: counseling_case.</p><p>소유 관계: counseling_case 1 → case_status_event 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> 루트 status와 이벤트 삽입을 같은 트랜잭션으로 갱신. closedAt/closeReason은 최신 종결 이벤트에서 조회.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "case_number_policy",
+      "group": "06 사례",
+      "fields": [
+        "id : uuid · PK",
+        "school_id : uuid · FK → school.id",
+        "school_year : integer · NOT NULL",
+        "pattern : text · NOT NULL",
+        "next_sequence : integer · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "school"
+      ],
+      "detailHtml": "<p>학교별 번호 규칙과 발급 카운터.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: school.</p><p>소유 관계: school 1 → case_number_policy 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> UNIQUE(school_id, school_year). 카운터 잠금/원자 증가로 중복 발급 방지.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "case_renumber_batch",
+      "group": "06 사례",
+      "fields": [
+        "id : uuid · PK",
+        "school_id : uuid · FK → school.id",
+        "description : text · NOT NULL",
+        "applied_at : timestamp · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "school"
+      ],
+      "detailHtml": "<p>번호 정리 작업 단위.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: school.</p><p>소유 관계: school 1 → case_renumber_batch 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "case_renumber_item",
+      "group": "06 사례",
+      "fields": [
+        "id : uuid · PK",
+        "case_renumber_batch_id : uuid · FK → case_renumber_batch.id",
+        "before_number : text · NOT NULL",
+        "after_number : text · NOT NULL",
+        "case_id : uuid · FK → counseling_case.id",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "case_renumber_batch",
+        "counseling_case"
+      ],
+      "detailHtml": "<p>사례별 변경 전후 번호.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: case_renumber_batch.</p><p>소유 관계: case_renumber_batch 1 → case_renumber_item 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> UNIQUE(case_renumber_batch_id, case_id). 적용 시 충돌 확인과 전체 번호 교체를 단일 트랜잭션으로 처리.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "concept_template",
+      "group": "07 사례개념화",
+      "fields": [
+        "id : uuid · PK",
+        "workspace_id : uuid · FK → workspace.id",
+        "name : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "workspace"
+      ],
+      "detailHtml": "<p>공간별 사례개념화 양식.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: workspace.</p><p>소유 관계: workspace 1 → concept_template 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "concept_template_field",
+      "group": "07 사례개념화",
+      "fields": [
+        "id : uuid · PK",
+        "concept_template_id : uuid · FK → concept_template.id",
+        "label : text · NOT NULL",
+        "position : integer · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "concept_template"
+      ],
+      "detailHtml": "<p>양식 항목과 표시 순서.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: concept_template.</p><p>소유 관계: concept_template 1 → concept_template_field 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> UNIQUE(concept_template_id, position).</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "case_concept",
+      "group": "07 사례개념화",
+      "fields": [
+        "id : uuid · PK",
+        "counseling_case_id : uuid · FK → counseling_case.id",
+        "title : text · NOT NULL",
+        "recorded_on : date · NOT NULL",
+        "template_name_snapshot : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "counseling_case"
+      ],
+      "detailHtml": "<p>사례개념화 작성 단위.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: counseling_case.</p><p>소유 관계: counseling_case 1 → case_concept 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> 원본 양식 삭제에도 기록이 남도록 템플릿 이름·항목을 작성 시 복제.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "case_concept_answer",
+      "group": "07 사례개념화",
+      "fields": [
+        "id : uuid · PK",
+        "case_concept_id : uuid · FK → case_concept.id",
+        "label_snapshot : text · NOT NULL",
+        "position : integer · NOT NULL",
+        "value : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "case_concept"
+      ],
+      "detailHtml": "<p>작성 당시 항목과 내용.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: case_concept.</p><p>소유 관계: case_concept 1 → case_concept_answer 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> UNIQUE(case_concept_id, position). 원본 concept_template_field와 FK를 맺지 않는 의도적 스냅샷.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "appointment",
+      "group": "08 일정·상담 기록",
+      "fields": [
+        "id : uuid · PK",
+        "school_id : uuid · FK → school.id",
+        "status : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "school"
+      ],
+      "detailHtml": "<p>학교 일정의 식별과 상태. 사례 없는 일반 일정도 허용합니다.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: school.</p><p>소유 관계: school 1 → appointment 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "appointment_schedule",
+      "group": "08 일정·상담 기록",
+      "fields": [
+        "id : uuid · PK, FK → appointment.id",
+        "title : text · NOT NULL",
+        "starts_at : timestamp · NOT NULL",
+        "ends_at : timestamp · NOT NULL",
+        "all_day : boolean · NOT NULL",
+        "timezone : text · NOT NULL",
+        "location : text · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "appointment"
+      ],
+      "detailHtml": "<p>일시·제목·장소.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: appointment.</p><p>소유 관계: appointment 1 → appointment_schedule 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> ends_at &gt; starts_at. 종일 일정은 학교 시간대 날짜 자정과 종료일 exclusive 규칙. 현재 start/end 문자열을 정규화.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "appointment_case",
+      "group": "08 일정·상담 기록",
+      "fields": [
+        "id : uuid · PK, FK → appointment.id",
+        "case_id : uuid · FK → counseling_case.id",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "appointment",
+        "counseling_case"
+      ],
+      "detailHtml": "<p>일정과 사례의 선택적 연결.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: appointment.</p><p>소유 관계: appointment 1 → appointment_case 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> 일정 1 → 연결 0..1. 학교 일치. 삭제는 기록 보존 정책에 따라 RESTRICT.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "appointment_student",
+      "group": "08 일정·상담 기록",
+      "fields": [
+        "id : uuid · PK",
+        "appointment_id : uuid · FK → appointment.id",
+        "student_id : uuid · FK → student.id",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "appointment",
+        "student"
+      ],
+      "detailHtml": "<p>해당 회기의 실제 참여 학생.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: appointment.</p><p>소유 관계: appointment 1 → appointment_student 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> UNIQUE(appointment_id, student_id). 사례 참여자와 별도 정본; 출석하지 않은 학생을 자동 복사 조회하지 않음.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "appointment_classification",
+      "group": "08 일정·상담 기록",
+      "fields": [
+        "id : uuid · PK, FK → appointment.id",
+        "category : text · NOT NULL",
+        "category_medium : text · NOT NULL",
+        "category_detail : text · NOT NULL",
+        "counseling_class : text · NOT NULL",
+        "wee_class : text · NOT NULL",
+        "medium : text · NOT NULL",
+        "target : text · NOT NULL",
+        "crisis : text · NOT NULL",
+        "counselor_affiliation : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "appointment"
+      ],
+      "detailHtml": "<p>상담 분류와 방식.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: appointment.</p><p>소유 관계: appointment 1 → appointment_classification 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> 현재 UI의 고정 코드값을 검증. 관리형 분류 사전은 실제 요구 발생 시 별도 도메인으로 추가.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "appointment_record",
+      "group": "08 일정·상담 기록",
+      "fields": [
+        "id : uuid · PK, FK → appointment.id",
+        "internal_notes : text · NOT NULL",
+        "recorded_at : timestamp · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "appointment"
+      ],
+      "detailHtml": "<p>내부 상담 기록.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: appointment.</p><p>소유 관계: appointment 1 → appointment_record 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "appointment_neis",
+      "group": "08 일정·상담 기록",
+      "fields": [
+        "id : uuid · PK, FK → appointment.id",
+        "title : text · NOT NULL",
+        "content : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "appointment"
+      ],
+      "detailHtml": "<p>나이스 제출용 문구. 내부 기록과 분리합니다.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: appointment.</p><p>소유 관계: appointment 1 → appointment_neis 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "appointment_reminder",
+      "group": "08 일정·상담 기록",
+      "fields": [
+        "id : uuid · PK, FK → appointment.id",
+        "minutes_before : integer · NOT NULL",
+        "last_sent_at : timestamp · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "appointment"
+      ],
+      "detailHtml": "<p>일정 알림 설정.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: appointment.</p><p>소유 관계: appointment 1 → appointment_reminder 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> minutes_before &gt;= 0. 실제 알림 작업 큐는 운영 연결 시 추가.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "appointment_display",
+      "group": "08 일정·상담 기록",
+      "fields": [
+        "id : uuid · PK, FK → appointment.id",
+        "color : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "appointment"
+      ],
+      "detailHtml": "<p>캘린더 표현 속성.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: appointment.</p><p>소유 관계: appointment 1 → appointment_display 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "consent_template",
+      "group": "09 동의서",
+      "fields": [
+        "id : uuid · PK",
+        "workspace_id : uuid · FK → workspace.id",
+        "name : text · NOT NULL",
+        "is_default : boolean · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "workspace"
+      ],
+      "detailHtml": "<p>공간별 동의서 양식 식별.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: workspace.</p><p>소유 관계: workspace 1 → consent_template 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> 공간별 기본 양식 최대 1개. 발송된 문서에는 현재 양식 대신 스냅샷 사용.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "consent_template_content",
+      "group": "09 동의서",
+      "fields": [
+        "id : uuid · PK, FK → consent_template.id",
+        "title : text · NOT NULL",
+        "body : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "consent_template"
+      ],
+      "detailHtml": "<p>양식 제목과 안내 본문.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: consent_template.</p><p>소유 관계: consent_template 1 → consent_template_content 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "consent_template_field",
+      "group": "09 동의서",
+      "fields": [
+        "id : uuid · PK",
+        "consent_template_id : uuid · FK → consent_template.id",
+        "label : text · NOT NULL",
+        "type : text · NOT NULL",
+        "required : boolean · NOT NULL",
+        "multiple : boolean · NOT NULL",
+        "description : text · NULL",
+        "position : integer · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "consent_template"
+      ],
+      "detailHtml": "<p>6가지 입력 유형의 항목 정의.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: consent_template.</p><p>소유 관계: consent_template 1 → consent_template_field 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> type IN text,textarea,select,date,consent,signature. UNIQUE(consent_template_id,position).</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "consent_template_option",
+      "group": "09 동의서",
+      "fields": [
+        "id : uuid · PK",
+        "consent_template_field_id : uuid · FK → consent_template_field.id",
+        "label : text · NOT NULL",
+        "position : integer · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "consent_template_field"
+      ],
+      "detailHtml": "<p>선택형 항목의 보기.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: consent_template_field.</p><p>소유 관계: consent_template_field 1 → consent_template_option 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "consent_request",
+      "group": "09 동의서",
+      "fields": [
+        "id : uuid · PK",
+        "counseling_case_id : uuid · FK → counseling_case.id",
+        "status : text · NOT NULL",
+        "student_id : uuid · FK → student.id",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "counseling_case",
+        "student"
+      ],
+      "detailHtml": "<p>특정 사례의 특정 학생에게 받는 동의 요청.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: counseling_case.</p><p>소유 관계: counseling_case 1 → consent_request 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> 학생이 사례 참여자이며 동일 workspace인지 검증. 현재 templateId는 추적 메타데이터로만 사용하고 문서 보존을 위해 원본 삭제를 차단하지 않음.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "consent_document",
+      "group": "09 동의서",
+      "fields": [
+        "id : uuid · PK, FK → consent_request.id",
+        "title : text · NOT NULL",
+        "body : text · NOT NULL",
+        "source_template_key : uuid · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "consent_request"
+      ],
+      "detailHtml": "<p>발송 당시 본문. 발송 후 수정하지 않습니다.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: consent_request.</p><p>소유 관계: consent_request 1 → consent_document 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> source_template_key는 출처 스냅샷으로 FK 아님. 수정하려면 새 요청 생성.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "consent_document_field",
+      "group": "09 동의서",
+      "fields": [
+        "id : uuid · PK",
+        "consent_document_id : uuid · FK → consent_document.id",
+        "label : text · NOT NULL",
+        "type : text · NOT NULL",
+        "required : boolean · NOT NULL",
+        "multiple : boolean · NOT NULL",
+        "description : text · NULL",
+        "position : integer · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "consent_document"
+      ],
+      "detailHtml": "<p>발송 당시 필드 정의. 원본 템플릿과 독립.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: consent_document.</p><p>소유 관계: consent_document 1 → consent_document_field 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "consent_document_option",
+      "group": "09 동의서",
+      "fields": [
+        "id : uuid · PK",
+        "consent_document_field_id : uuid · FK → consent_document_field.id",
+        "label : text · NOT NULL",
+        "position : integer · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "consent_document_field"
+      ],
+      "detailHtml": "<p>발송 당시 선택 항목.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: consent_document_field.</p><p>소유 관계: consent_document_field 1 → consent_document_option 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "consent_delivery",
+      "group": "09 동의서",
+      "fields": [
+        "id : uuid · PK",
+        "consent_request_id : uuid · FK → consent_request.id",
+        "channel : text · NOT NULL",
+        "recipient_name : text · NOT NULL",
+        "recipient_phone : text · NULL",
+        "token_hash : text · UK",
+        "expires_at : timestamp · NOT NULL",
+        "revoked_at : timestamp · NULL",
+        "status : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "consent_request"
+      ],
+      "detailHtml": "<p>발송·재발송 차수별 수신인과 만료.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: consent_request.</p><p>소유 관계: consent_request 1 → consent_delivery 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> 요청별 유효 링크 최대 1개. 재발송은 이전 차수 폐기+새 차수 생성. token 원문 저장 금지. 수신인 연락처는 발송 당시 값으로 보존.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "consent_delivery_attempt",
+      "group": "09 동의서",
+      "fields": [
+        "id : uuid · PK",
+        "consent_delivery_id : uuid · FK → consent_delivery.id",
+        "idempotency_key : text · UK",
+        "provider_message_id : text · NULL",
+        "status : text · NOT NULL",
+        "error_code : text · NULL",
+        "sent_at : timestamp · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "consent_delivery"
+      ],
+      "detailHtml": "<p>문자 제공자 전송 시도와 결과.</p><p><strong>상태:</strong> 신규 제안 · 문자 연동. 부모: consent_delivery.</p><p>소유 관계: consent_delivery 1 → consent_delivery_attempt 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> 링크 공유만 하는 경우 전송 시도 행 없음. 제공자 콜백 중복 수신도 멱등 처리.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "consent_response",
+      "group": "09 동의서",
+      "fields": [
+        "id : uuid · PK, FK → consent_delivery.id",
+        "submitted_at : timestamp · NOT NULL",
+        "guardian_name : text · NOT NULL",
+        "counseling_agreed : boolean · NOT NULL",
+        "privacy_agreed : boolean · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "consent_delivery"
+      ],
+      "detailHtml": "<p>발송 차수에 대한 학부모 최종 제출.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: consent_delivery.</p><p>소유 관계: consent_delivery 1 → consent_response 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> 차수당 최종 응답 1개. 미동의도 정상 응답. 요청별 최신 결과를 조회하되 이전 차수의 응답을 보존.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "consent_answer",
+      "group": "09 동의서",
+      "fields": [
+        "id : uuid · PK",
+        "consent_response_id : uuid · FK → consent_response.id",
+        "text_value : text · NULL",
+        "date_value : date · NULL",
+        "boolean_value : boolean · NULL",
+        "field_id : uuid · FK → consent_document_field.id",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "consent_response",
+        "consent_document_field"
+      ],
+      "detailHtml": "<p>발송 문항별 답변.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: consent_response.</p><p>소유 관계: consent_response 1 → consent_answer 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> UNIQUE(consent_response_id,field_id). 응답의 delivery.request와 field.document.request 일치. 필드 유형에 맞는 값만 허용; select/signature는 자식 사용.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "consent_answer_choice",
+      "group": "09 동의서",
+      "fields": [
+        "id : uuid · PK",
+        "consent_answer_id : uuid · FK → consent_answer.id",
+        "option_id : uuid · FK → consent_document_option.id",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "consent_answer",
+        "consent_document_option"
+      ],
+      "detailHtml": "<p>선택형의 단일·복수 선택 값.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: consent_answer.</p><p>소유 관계: consent_answer 1 → consent_answer_choice 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> UNIQUE(consent_answer_id,option_id). option의 field와 answer.field 일치. multiple=false면 최대 1개.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "consent_signature",
+      "group": "09 동의서",
+      "fields": [
+        "id : uuid · PK, FK → consent_answer.id",
+        "method : text · NOT NULL",
+        "typed_name : text · NULL",
+        "asset_id : uuid · FK, NULL → file_asset.id",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "consent_answer",
+        "file_asset"
+      ],
+      "detailHtml": "<p>이미지 또는 이름 입력 방식의 서명.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: consent_answer.</p><p>소유 관계: consent_answer 1 → consent_signature 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> method에 따라 typed_name 또는 asset 필수. 부모 answer의 필드 타입은 signature. 서명 이미지는 데이터 URI 대신 파일 참조.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "consent_event",
+      "group": "09 동의서",
+      "fields": [
+        "id : uuid · PK",
+        "consent_request_id : uuid · FK → consent_request.id",
+        "event_type : text · NOT NULL",
+        "message : text · NOT NULL",
+        "occurred_at : timestamp · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "consent_request"
+      ],
+      "detailHtml": "<p>요청 작성·발송·수신·만료 처리 기록.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: consent_request.</p><p>소유 관계: consent_request 1 → consent_event 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "file_asset",
+      "group": "10 작품·파일",
+      "fields": [
+        "id : uuid · PK",
+        "workspace_id : uuid · FK → workspace.id",
+        "object_key : text · UK",
+        "mime_type : text · NOT NULL",
+        "byte_size : integer · NOT NULL",
+        "sha256 : text · NOT NULL",
+        "state : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "workspace"
+      ],
+      "detailHtml": "<p>파일 저장 위치와 무결성 메타데이터.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: workspace.</p><p>소유 관계: workspace 1 → file_asset 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> 본문은 비공개 파일 저장소. 공개 URL과 서명 URL을 정본으로 저장하지 않음. 참조가 남은 파일 삭제 RESTRICT; 삭제 대기 후 정리.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "art_activity",
+      "group": "10 작품·파일",
+      "fields": [
+        "id : uuid · PK",
+        "code : text · UK",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [],
+      "detailHtml": "<p>그림 활동 카탈로그.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: 독립 도메인 루트.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/shared/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "art_activity_content",
+      "group": "10 작품·파일",
+      "fields": [
+        "id : uuid · PK, FK → art_activity.id",
+        "name : text · NOT NULL",
+        "guide : text · NOT NULL",
+        "description : text · NOT NULL",
+        "duration_minutes : integer · NOT NULL",
+        "kind : text · NOT NULL",
+        "color : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "art_activity"
+      ],
+      "detailHtml": "<p>활동의 안내·표현 속성.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: art_activity.</p><p>소유 관계: art_activity 1 → art_activity_content 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "artwork",
+      "group": "10 작품·파일",
+      "fields": [
+        "id : uuid · PK",
+        "student_id : uuid · FK → student.id",
+        "school_id : uuid · FK → school.id",
+        "activity_id : uuid · FK → art_activity.id",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "student",
+        "school",
+        "art_activity"
+      ],
+      "detailHtml": "<p>학생이 남긴 작품 식별.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: student.</p><p>소유 관계: student 1 → artwork 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> 학교와 학생 workspace 일치. 작품을 먼저 저장한 뒤 이미지·성찰 자식을 같은 트랜잭션으로 연결.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "artwork_image",
+      "group": "10 작품·파일",
+      "fields": [
+        "id : uuid · PK, FK → artwork.id",
+        "asset_id : uuid · FK → file_asset.id",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "artwork",
+        "file_asset"
+      ],
+      "detailHtml": "<p>작품의 이미지 파일.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: artwork.</p><p>소유 관계: artwork 1 → artwork_image 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "artwork_reflection",
+      "group": "10 작품·파일",
+      "fields": [
+        "id : uuid · PK, FK → artwork.id",
+        "reflection : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "artwork"
+      ],
+      "detailHtml": "<p>작품에 남긴 성찰 메모.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: artwork.</p><p>소유 관계: artwork 1 → artwork_reflection 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "school_timetable",
+      "group": "11 시간표·급식",
+      "fields": [
+        "id : uuid · PK",
+        "school_id : uuid · FK → school.id",
+        "name : text · NOT NULL",
+        "effective_from : date · NOT NULL",
+        "effective_to : date · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "school"
+      ],
+      "detailHtml": "<p>학교 시간표의 적용 단위.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: school.</p><p>소유 관계: school 1 → school_timetable 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> 학교별 활성 적용기간 중복 금지. 현재 화면은 활성 1개 편집; 과거 시간표는 이후 확장 가능.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "timetable_period",
+      "group": "11 시간표·급식",
+      "fields": [
+        "id : uuid · PK",
+        "school_timetable_id : uuid · FK → school_timetable.id",
+        "label : text · NOT NULL",
+        "kind : text · NOT NULL",
+        "position : integer · NOT NULL",
+        "starts_at : time · NOT NULL",
+        "ends_at : time · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "school_timetable"
+      ],
+      "detailHtml": "<p>교시와 점심 시간.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: school_timetable.</p><p>소유 관계: school_timetable 1 → timetable_period 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> UNIQUE(school_timetable_id,position). 종료&gt;시작, 동일 표의 구간 중첩 금지. 빈 시간표 허용.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "school_meal",
+      "group": "11 시간표·급식",
+      "fields": [
+        "id : uuid · PK",
+        "school_id : uuid · FK → school.id",
+        "meal_date : date · NOT NULL",
+        "meal_type : text · NOT NULL",
+        "provider : text · NOT NULL",
+        "fetched_at : timestamp · NOT NULL",
+        "expires_at : timestamp · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "school"
+      ],
+      "detailHtml": "<p>날짜·식사 구분별 급식 조회 캐시.</p><p><strong>상태:</strong> 신규 제안 · 급식 API 연동. 부모: school.</p><p>소유 관계: school 1 → school_meal 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> UNIQUE(school_id,meal_date,meal_type,provider). API 제공자를 정하기 전의 제안 모델. 재생성 가능한 캐시.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "school_meal_item",
+      "group": "11 시간표·급식",
+      "fields": [
+        "id : uuid · PK",
+        "school_meal_id : uuid · FK → school_meal.id",
+        "name : text · NOT NULL",
+        "position : integer · NOT NULL",
+        "allergen_codes : text · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "school_meal"
+      ],
+      "detailHtml": "<p>메뉴 항목.</p><p><strong>상태:</strong> 신규 제안 · 급식 API 연동. 부모: school_meal.</p><p>소유 관계: school_meal 1 → school_meal_item 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "archive",
+      "group": "12 기록물·운영",
+      "fields": [
+        "id : uuid · PK",
+        "school_id : uuid · FK → school.id",
+        "state : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "school"
+      ],
+      "detailHtml": "<p>학교 기록물철 식별과 상태.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: school.</p><p>소유 관계: school 1 → archive 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "archive_detail",
+      "group": "12 기록물·운영",
+      "fields": [
+        "id : uuid · PK, FK → archive.id",
+        "title : text · NOT NULL",
+        "school_year : integer · NOT NULL",
+        "memo : text · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "archive"
+      ],
+      "detailHtml": "<p>기록물철의 제목·학년도·메모.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: archive.</p><p>소유 관계: archive 1 → archive_detail 0..1. id를 부모와 공유하여 자식 중복을 방지합니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "archive_case",
+      "group": "12 기록물·운영",
+      "fields": [
+        "id : uuid · PK",
+        "archive_id : uuid · FK → archive.id",
+        "case_id : uuid · FK → counseling_case.id",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "archive",
+        "counseling_case"
+      ],
+      "detailHtml": "<p>확정할 사례의 명시적 목록.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: archive.</p><p>소유 관계: archive 1 → archive_case 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> UNIQUE(archive_id,case_id). 학교 일치. 현재 Archive 메타데이터만으로 어떤 사례가 이관됐는지 알 수 없어 추가 제안.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "archive_transfer",
+      "group": "12 기록물·운영",
+      "fields": [
+        "id : uuid · PK",
+        "archive_id : uuid · FK → archive.id",
+        "recipient : text · NOT NULL",
+        "action : text · NOT NULL",
+        "action_date : date · NOT NULL",
+        "memo : text · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "archive"
+      ],
+      "detailHtml": "<p>수신처와 이관·연장 처리 이력.</p><p><strong>상태:</strong> 신규 제안 · 핵심. 부모: archive.</p><p>소유 관계: archive 1 → archive_transfer 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> FK 인덱스를 생성합니다. 명시하지 않은 컬럼은 NOT NULL이며 선택값은 NULL로 표시합니다.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "archive_export",
+      "group": "12 기록물·운영",
+      "fields": [
+        "id : uuid · PK",
+        "archive_id : uuid · FK → archive.id",
+        "format : text · NOT NULL",
+        "generated_at : timestamp · NOT NULL",
+        "asset_id : uuid · FK → file_asset.id",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "archive",
+        "file_asset"
+      ],
+      "detailHtml": "<p>확정 당시의 기록물 산출물.</p><p><strong>상태:</strong> 신규 제안 · 실제 출력 연동. 부모: archive.</p><p>소유 관계: archive 1 → archive_export 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> 확정 시 변하지 않는 파일 스냅샷과 해시 보관. 라이브 사례 수정으로 기존 이관본이 바뀌지 않음.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "backup_run",
+      "group": "12 기록물·운영",
+      "fields": [
+        "id : uuid · PK",
+        "local_device_id : uuid · FK → local_device.id",
+        "status : text · NOT NULL",
+        "file_path : text · NULL",
+        "schema_version : integer · NOT NULL",
+        "sha256 : text · NULL",
+        "completed_at : timestamp · NULL",
+        "error_message : text · NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "local_device"
+      ],
+      "detailHtml": "<p>백업 실행 결과. 기기 경로를 서버 업무 정보와 분리.</p><p><strong>상태:</strong> 신규 제안 · 백업 연동. 부모: local_device.</p><p>소유 관계: local_device 1 → backup_run 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> 로컬 전용. 백업 파일과 복원 기록은 계정 토큰·PIN 인증 세션을 포함하지 않음.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    },
+    {
+      "name": "audit_event",
+      "group": "12 기록물·운영",
+      "fields": [
+        "id : uuid · PK",
+        "workspace_id : uuid · FK → workspace.id",
+        "actor_key : uuid · NULL",
+        "action : text · NOT NULL",
+        "resource_type : text · NOT NULL",
+        "resource_key : uuid · NOT NULL",
+        "occurred_at : timestamp · NOT NULL",
+        "result : text · NOT NULL",
+        "created_at : timestamp · NOT NULL"
+      ],
+      "refs": [
+        "workspace"
+      ],
+      "detailHtml": "<p>자료 접근·내보내기 등 운영 감사 로그.</p><p><strong>상태:</strong> 신규 제안 · 운영 확장. 부모: workspace.</p><p>소유 관계: workspace 1 → audit_event 0..N. 부모 FK는 필수입니다.</p><p><strong>제약·처리:</strong> actor/resource 키는 삭제 후에도 기록을 남기기 위한 논리 식별자, 다형 FK가 아님. 상담 본문·토큰·PIN은 로그에 기록하지 않음.</p><p><strong>코드 근거:</strong> <code>src/renderer/src/weetory/model.ts</code>. 테이블·분리 경계·운영 필드는 현재 코드에서 도출한 제안이며 기존 DB 테이블이 아닙니다.</p>"
+    }
+  ],
+  "erdSource": {
+    "href": "artchology-full.mmd",
+    "label": "전체 Mermaid ERD 원본"
+  }
+}

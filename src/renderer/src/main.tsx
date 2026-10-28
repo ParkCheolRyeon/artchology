@@ -1,3 +1,4 @@
+import { AppToaster } from './components/AppToaster'
 import './assets/design-system.css'
 
 import { StrictMode } from 'react'
@@ -6,6 +7,8 @@ import App from './weetory/Shell'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <AppToaster>
+      <App />
+    </AppToaster>
   </StrictMode>
 )

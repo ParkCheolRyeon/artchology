@@ -1,0 +1,733 @@
+erDiagram
+    direction TB
+    account {
+        uuid id PK "required"
+        text status "required"
+        timestamp created_at "required"
+    }
+    account_profile {
+        uuid id PK, FK "required"
+        text display_name "required"
+        text contact_email "nullable"
+        text phone "nullable"
+        timestamp created_at "required"
+    }
+    account_identity {
+        uuid id PK "required"
+        uuid account_id FK "required"
+        text provider "required"
+        text subject "required"
+        timestamp verified_at "nullable"
+        timestamp created_at "required"
+    }
+    email_challenge {
+        uuid id PK "required"
+        text email "required"
+        text purpose "required"
+        text code_hash "required"
+        timestamp expires_at "required"
+        timestamp consumed_at "nullable"
+        integer attempts "required"
+        timestamp blocked_until "nullable"
+        timestamp created_at "required"
+    }
+    account_session {
+        uuid id PK "required"
+        uuid account_id FK "required"
+        text refresh_hash UK "required"
+        timestamp expires_at "required"
+        timestamp revoked_at "nullable"
+        timestamp last_used_at "nullable"
+        uuid device_id FK "nullable"
+        timestamp created_at "required"
+    }
+    device {
+        uuid id PK "required"
+        text installation_key UK "required"
+        text platform "required"
+        timestamp revoked_at "nullable"
+        timestamp created_at "required"
+    }
+    account_deletion {
+        uuid id PK "required"
+        uuid account_id FK "required"
+        timestamp requested_at "required"
+        text state "required"
+        timestamp completed_at "nullable"
+        timestamp created_at "required"
+    }
+    local_device {
+        uuid id PK "required"
+        text installation_key UK "required"
+        timestamp created_at "required"
+    }
+    local_pin {
+        uuid id PK, FK "required"
+        text verifier "required"
+        text salt "required"
+        json kdf_parameters "required"
+        integer failed_attempts "required"
+        timestamp blocked_until "nullable"
+        timestamp changed_at "required"
+        timestamp created_at "required"
+    }
+    local_recovery {
+        uuid id PK "required"
+        uuid local_device_id FK "required"
+        text code_hash UK "required"
+        timestamp revoked_at "nullable"
+        timestamp used_at "nullable"
+        timestamp created_at "required"
+    }
+    local_preferences {
+        uuid id PK, FK "required"
+        text document_folder "nullable"
+        text theme "required"
+        integer auto_lock_minutes "required"
+        boolean auto_backup "required"
+        time backup_time "nullable"
+        integer backup_retention_days "required"
+        timestamp created_at "required"
+    }
+    workspace {
+        uuid id PK "required"
+        text status "required"
+        timestamp created_at "required"
+    }
+    workspace_profile {
+        uuid id PK, FK "required"
+        text name "required"
+        text counselor_name "required"
+        text affiliation "required"
+        text email "nullable"
+        text phone "nullable"
+        timestamp created_at "required"
+    }
+    workspace_member {
+        uuid id PK "required"
+        uuid workspace_id FK "required"
+        text role "required"
+        text status "required"
+        uuid account_id FK "required"
+        timestamp created_at "required"
+    }
+    workspace_preferences {
+        uuid id PK, FK "required"
+        integer school_year "required"
+        text default_classification "required"
+        timestamp created_at "required"
+    }
+    school {
+        uuid id PK "required"
+        uuid workspace_id FK "required"
+        text status "required"
+        timestamp created_at "required"
+    }
+    school_profile {
+        uuid id PK, FK "required"
+        text name "required"
+        text school_type "required"
+        text wee_class "required"
+        text phone "nullable"
+        timestamp created_at "required"
+    }
+    school_public_source {
+        uuid id PK "required"
+        uuid school_id FK "required"
+        text provider "required"
+        text office_code "required"
+        text school_code "required"
+        timestamp created_at "required"
+    }
+    subscription_plan {
+        uuid id PK "required"
+        text code UK "required"
+        text name "required"
+        timestamp created_at "required"
+    }
+    plan_entitlement {
+        uuid id PK "required"
+        uuid subscription_plan_id FK "required"
+        text feature_code "required"
+        integer limit_value "nullable"
+        timestamp created_at "required"
+    }
+    subscription {
+        uuid id PK "required"
+        uuid account_id FK "required"
+        text status "required"
+        uuid plan_id FK "required"
+        timestamp created_at "required"
+    }
+    subscription_term {
+        uuid id PK "required"
+        uuid subscription_id FK "required"
+        timestamp starts_at "required"
+        timestamp ends_at "required"
+        text source "required"
+        timestamp created_at "required"
+    }
+    redemption_code {
+        uuid id PK "required"
+        text code_hash UK "required"
+        integer duration_days "required"
+        timestamp expires_at "required"
+        integer max_uses "required"
+        timestamp disabled_at "nullable"
+        uuid plan_id FK "required"
+        timestamp created_at "required"
+    }
+    code_redemption {
+        uuid id PK "required"
+        uuid redemption_code_id FK "required"
+        timestamp redeemed_at "required"
+        uuid account_id FK "required"
+        uuid term_id FK "required"
+        timestamp created_at "required"
+    }
+    student {
+        uuid id PK "required"
+        uuid workspace_id FK "required"
+        text status "required"
+        timestamp created_at "required"
+    }
+    student_profile {
+        uuid id PK, FK "required"
+        text name "required"
+        text gender "required"
+        text contact "nullable"
+        timestamp created_at "required"
+    }
+    student_enrollment {
+        uuid id PK "required"
+        uuid student_id FK "required"
+        integer school_year "required"
+        integer grade "required"
+        text classroom "required"
+        integer student_number "required"
+        text status "required"
+        date effective_from "required"
+        date effective_to "nullable"
+        uuid school_id FK "required"
+        timestamp created_at "required"
+    }
+    student_guardian {
+        uuid id PK "required"
+        uuid student_id FK "required"
+        text name "required"
+        text relationship "required"
+        text phone "required"
+        boolean is_primary "required"
+        timestamp created_at "required"
+    }
+    counseling_case {
+        uuid id PK "required"
+        uuid school_id FK "required"
+        text status "required"
+        date opened_at "required"
+        timestamp created_at "required"
+    }
+    case_number {
+        uuid id PK, FK "required"
+        integer school_year "required"
+        text number "required"
+        timestamp created_at "required"
+    }
+    case_student {
+        uuid id PK "required"
+        uuid counseling_case_id FK "required"
+        uuid student_id FK "required"
+        timestamp created_at "required"
+    }
+    case_assessment {
+        uuid id PK, FK "required"
+        text complaint "required"
+        text goal "required"
+        text teacher_opinion "nullable"
+        text notes "nullable"
+        timestamp created_at "required"
+    }
+    case_referral {
+        uuid id PK, FK "required"
+        text name "required"
+        text role "required"
+        text contact "nullable"
+        timestamp created_at "required"
+    }
+    case_status_event {
+        uuid id PK "required"
+        uuid counseling_case_id FK "required"
+        text from_status "required"
+        text to_status "required"
+        text reason "nullable"
+        timestamp occurred_at "required"
+        timestamp created_at "required"
+    }
+    case_number_policy {
+        uuid id PK "required"
+        uuid school_id FK "required"
+        integer school_year "required"
+        text pattern "required"
+        integer next_sequence "required"
+        timestamp created_at "required"
+    }
+    case_renumber_batch {
+        uuid id PK "required"
+        uuid school_id FK "required"
+        text description "required"
+        timestamp applied_at "required"
+        timestamp created_at "required"
+    }
+    case_renumber_item {
+        uuid id PK "required"
+        uuid case_renumber_batch_id FK "required"
+        text before_number "required"
+        text after_number "required"
+        uuid case_id FK "required"
+        timestamp created_at "required"
+    }
+    concept_template {
+        uuid id PK "required"
+        uuid workspace_id FK "required"
+        text name "required"
+        timestamp created_at "required"
+    }
+    concept_template_field {
+        uuid id PK "required"
+        uuid concept_template_id FK "required"
+        text label "required"
+        integer position "required"
+        timestamp created_at "required"
+    }
+    case_concept {
+        uuid id PK "required"
+        uuid counseling_case_id FK "required"
+        text title "required"
+        date recorded_on "required"
+        text template_name_snapshot "required"
+        timestamp created_at "required"
+    }
+    case_concept_answer {
+        uuid id PK "required"
+        uuid case_concept_id FK "required"
+        text label_snapshot "required"
+        integer position "required"
+        text value "required"
+        timestamp created_at "required"
+    }
+    appointment {
+        uuid id PK "required"
+        uuid school_id FK "required"
+        text status "required"
+        timestamp created_at "required"
+    }
+    appointment_schedule {
+        uuid id PK, FK "required"
+        text title "required"
+        timestamp starts_at "required"
+        timestamp ends_at "required"
+        boolean all_day "required"
+        text timezone "required"
+        text location "nullable"
+        timestamp created_at "required"
+    }
+    appointment_case {
+        uuid id PK, FK "required"
+        uuid case_id FK "required"
+        timestamp created_at "required"
+    }
+    appointment_student {
+        uuid id PK "required"
+        uuid appointment_id FK "required"
+        uuid student_id FK "required"
+        timestamp created_at "required"
+    }
+    appointment_classification {
+        uuid id PK, FK "required"
+        text category "required"
+        text category_medium "required"
+        text category_detail "required"
+        text counseling_class "required"
+        text wee_class "required"
+        text medium "required"
+        text target "required"
+        text crisis "required"
+        text counselor_affiliation "required"
+        timestamp created_at "required"
+    }
+    appointment_record {
+        uuid id PK, FK "required"
+        text internal_notes "required"
+        timestamp recorded_at "nullable"
+        timestamp created_at "required"
+    }
+    appointment_neis {
+        uuid id PK, FK "required"
+        text title "required"
+        text content "required"
+        timestamp created_at "required"
+    }
+    appointment_reminder {
+        uuid id PK, FK "required"
+        integer minutes_before "required"
+        timestamp last_sent_at "nullable"
+        timestamp created_at "required"
+    }
+    appointment_display {
+        uuid id PK, FK "required"
+        text color "required"
+        timestamp created_at "required"
+    }
+    consent_template {
+        uuid id PK "required"
+        uuid workspace_id FK "required"
+        text name "required"
+        boolean is_default "required"
+        timestamp created_at "required"
+    }
+    consent_template_content {
+        uuid id PK, FK "required"
+        text title "required"
+        text body "required"
+        timestamp created_at "required"
+    }
+    consent_template_field {
+        uuid id PK "required"
+        uuid consent_template_id FK "required"
+        text label "required"
+        text type "required"
+        boolean required "required"
+        boolean multiple "required"
+        text description "nullable"
+        integer position "required"
+        timestamp created_at "required"
+    }
+    consent_template_option {
+        uuid id PK "required"
+        uuid consent_template_field_id FK "required"
+        text label "required"
+        integer position "required"
+        timestamp created_at "required"
+    }
+    consent_request {
+        uuid id PK "required"
+        uuid counseling_case_id FK "required"
+        text status "required"
+        uuid student_id FK "required"
+        timestamp created_at "required"
+    }
+    consent_document {
+        uuid id PK, FK "required"
+        text title "required"
+        text body "required"
+        uuid source_template_key "nullable"
+        timestamp created_at "required"
+    }
+    consent_document_field {
+        uuid id PK "required"
+        uuid consent_document_id FK "required"
+        text label "required"
+        text type "required"
+        boolean required "required"
+        boolean multiple "required"
+        text description "nullable"
+        integer position "required"
+        timestamp created_at "required"
+    }
+    consent_document_option {
+        uuid id PK "required"
+        uuid consent_document_field_id FK "required"
+        text label "required"
+        integer position "required"
+        timestamp created_at "required"
+    }
+    consent_delivery {
+        uuid id PK "required"
+        uuid consent_request_id FK "required"
+        text channel "required"
+        text recipient_name "required"
+        text recipient_phone "nullable"
+        text token_hash UK "required"
+        timestamp expires_at "required"
+        timestamp revoked_at "nullable"
+        text status "required"
+        timestamp created_at "required"
+    }
+    consent_delivery_attempt {
+        uuid id PK "required"
+        uuid consent_delivery_id FK "required"
+        text idempotency_key UK "required"
+        text provider_message_id "nullable"
+        text status "required"
+        text error_code "nullable"
+        timestamp sent_at "nullable"
+        timestamp created_at "required"
+    }
+    consent_response {
+        uuid id PK, FK "required"
+        timestamp submitted_at "required"
+        text guardian_name "required"
+        boolean counseling_agreed "required"
+        boolean privacy_agreed "required"
+        timestamp created_at "required"
+    }
+    consent_answer {
+        uuid id PK "required"
+        uuid consent_response_id FK "required"
+        text text_value "nullable"
+        date date_value "nullable"
+        boolean boolean_value "nullable"
+        uuid field_id FK "required"
+        timestamp created_at "required"
+    }
+    consent_answer_choice {
+        uuid id PK "required"
+        uuid consent_answer_id FK "required"
+        uuid option_id FK "required"
+        timestamp created_at "required"
+    }
+    consent_signature {
+        uuid id PK, FK "required"
+        text method "required"
+        text typed_name "nullable"
+        uuid asset_id FK "nullable"
+        timestamp created_at "required"
+    }
+    consent_event {
+        uuid id PK "required"
+        uuid consent_request_id FK "required"
+        text event_type "required"
+        text message "required"
+        timestamp occurred_at "required"
+        timestamp created_at "required"
+    }
+    file_asset {
+        uuid id PK "required"
+        uuid workspace_id FK "required"
+        text object_key UK "required"
+        text mime_type "required"
+        integer byte_size "required"
+        text sha256 "required"
+        text state "required"
+        timestamp created_at "required"
+    }
+    art_activity {
+        uuid id PK "required"
+        text code UK "required"
+        timestamp created_at "required"
+    }
+    art_activity_content {
+        uuid id PK, FK "required"
+        text name "required"
+        text guide "required"
+        text description "required"
+        integer duration_minutes "required"
+        text kind "required"
+        text color "required"
+        timestamp created_at "required"
+    }
+    artwork {
+        uuid id PK "required"
+        uuid student_id FK "required"
+        uuid school_id FK "required"
+        uuid activity_id FK "required"
+        timestamp created_at "required"
+    }
+    artwork_image {
+        uuid id PK, FK "required"
+        uuid asset_id FK "required"
+        timestamp created_at "required"
+    }
+    artwork_reflection {
+        uuid id PK, FK "required"
+        text reflection "required"
+        timestamp created_at "required"
+    }
+    school_timetable {
+        uuid id PK "required"
+        uuid school_id FK "required"
+        text name "required"
+        date effective_from "required"
+        date effective_to "nullable"
+        timestamp created_at "required"
+    }
+    timetable_period {
+        uuid id PK "required"
+        uuid school_timetable_id FK "required"
+        text label "required"
+        text kind "required"
+        integer position "required"
+        time starts_at "required"
+        time ends_at "required"
+        timestamp created_at "required"
+    }
+    school_meal {
+        uuid id PK "required"
+        uuid school_id FK "required"
+        date meal_date "required"
+        text meal_type "required"
+        text provider "required"
+        timestamp fetched_at "required"
+        timestamp expires_at "required"
+        timestamp created_at "required"
+    }
+    school_meal_item {
+        uuid id PK "required"
+        uuid school_meal_id FK "required"
+        text name "required"
+        integer position "required"
+        text allergen_codes "nullable"
+        timestamp created_at "required"
+    }
+    archive {
+        uuid id PK "required"
+        uuid school_id FK "required"
+        text state "required"
+        timestamp created_at "required"
+    }
+    archive_detail {
+        uuid id PK, FK "required"
+        text title "required"
+        integer school_year "required"
+        text memo "nullable"
+        timestamp created_at "required"
+    }
+    archive_case {
+        uuid id PK "required"
+        uuid archive_id FK "required"
+        uuid case_id FK "required"
+        timestamp created_at "required"
+    }
+    archive_transfer {
+        uuid id PK "required"
+        uuid archive_id FK "required"
+        text recipient "required"
+        text action "required"
+        date action_date "required"
+        text memo "nullable"
+        timestamp created_at "required"
+    }
+    archive_export {
+        uuid id PK "required"
+        uuid archive_id FK "required"
+        text format "required"
+        timestamp generated_at "required"
+        uuid asset_id FK "required"
+        timestamp created_at "required"
+    }
+    backup_run {
+        uuid id PK "required"
+        uuid local_device_id FK "required"
+        text status "required"
+        text file_path "nullable"
+        integer schema_version "required"
+        text sha256 "nullable"
+        timestamp completed_at "nullable"
+        text error_message "nullable"
+        timestamp created_at "required"
+    }
+    audit_event {
+        uuid id PK "required"
+        uuid workspace_id FK "required"
+        uuid actor_key "nullable"
+        text action "required"
+        text resource_type "required"
+        uuid resource_key "required"
+        timestamp occurred_at "required"
+        text result "required"
+        timestamp created_at "required"
+    }
+    account ||--o| account_profile : "id"
+    account ||--o{ account_identity : "account_id"
+    account ||--o{ account_session : "account_id"
+    device |o--o{ account_session : "device_id"
+    account ||--o{ account_deletion : "account_id"
+    local_device ||--o| local_pin : "id"
+    local_device ||--o{ local_recovery : "local_device_id"
+    local_device ||--o| local_preferences : "id"
+    workspace ||--o| workspace_profile : "id"
+    workspace ||--o{ workspace_member : "workspace_id"
+    account ||--o{ workspace_member : "account_id"
+    workspace ||--o| workspace_preferences : "id"
+    workspace ||--o{ school : "workspace_id"
+    school ||--o| school_profile : "id"
+    school ||--o{ school_public_source : "school_id"
+    subscription_plan ||--o{ plan_entitlement : "subscription_plan_id"
+    account ||--o{ subscription : "account_id"
+    subscription_plan ||--o{ subscription : "plan_id"
+    subscription ||--o{ subscription_term : "subscription_id"
+    subscription_plan ||--o{ redemption_code : "plan_id"
+    redemption_code ||--o{ code_redemption : "redemption_code_id"
+    account ||--o{ code_redemption : "account_id"
+    subscription_term ||--o{ code_redemption : "term_id"
+    workspace ||--o{ student : "workspace_id"
+    student ||--o| student_profile : "id"
+    student ||--o{ student_enrollment : "student_id"
+    school ||--o{ student_enrollment : "school_id"
+    student ||--o{ student_guardian : "student_id"
+    school ||--o{ counseling_case : "school_id"
+    counseling_case ||--o| case_number : "id"
+    counseling_case ||--o{ case_student : "counseling_case_id"
+    student ||--o{ case_student : "student_id"
+    counseling_case ||--o| case_assessment : "id"
+    counseling_case ||--o| case_referral : "id"
+    counseling_case ||--o{ case_status_event : "counseling_case_id"
+    school ||--o{ case_number_policy : "school_id"
+    school ||--o{ case_renumber_batch : "school_id"
+    case_renumber_batch ||--o{ case_renumber_item : "case_renumber_batch_id"
+    counseling_case ||--o{ case_renumber_item : "case_id"
+    workspace ||--o{ concept_template : "workspace_id"
+    concept_template ||--o{ concept_template_field : "concept_template_id"
+    counseling_case ||--o{ case_concept : "counseling_case_id"
+    case_concept ||--o{ case_concept_answer : "case_concept_id"
+    school ||--o{ appointment : "school_id"
+    appointment ||--o| appointment_schedule : "id"
+    appointment ||--o| appointment_case : "id"
+    counseling_case ||--o{ appointment_case : "case_id"
+    appointment ||--o{ appointment_student : "appointment_id"
+    student ||--o{ appointment_student : "student_id"
+    appointment ||--o| appointment_classification : "id"
+    appointment ||--o| appointment_record : "id"
+    appointment ||--o| appointment_neis : "id"
+    appointment ||--o| appointment_reminder : "id"
+    appointment ||--o| appointment_display : "id"
+    workspace ||--o{ consent_template : "workspace_id"
+    consent_template ||--o| consent_template_content : "id"
+    consent_template ||--o{ consent_template_field : "consent_template_id"
+    consent_template_field ||--o{ consent_template_option : "consent_template_field_id"
+    counseling_case ||--o{ consent_request : "counseling_case_id"
+    student ||--o{ consent_request : "student_id"
+    consent_request ||--o| consent_document : "id"
+    consent_document ||--o{ consent_document_field : "consent_document_id"
+    consent_document_field ||--o{ consent_document_option : "consent_document_field_id"
+    consent_request ||--o{ consent_delivery : "consent_request_id"
+    consent_delivery ||--o{ consent_delivery_attempt : "consent_delivery_id"
+    consent_delivery ||--o| consent_response : "id"
+    consent_response ||--o{ consent_answer : "consent_response_id"
+    consent_document_field ||--o{ consent_answer : "field_id"
+    consent_answer ||--o{ consent_answer_choice : "consent_answer_id"
+    consent_document_option ||--o{ consent_answer_choice : "option_id"
+    consent_answer ||--o| consent_signature : "id"
+    file_asset |o--o{ consent_signature : "asset_id"
+    consent_request ||--o{ consent_event : "consent_request_id"
+    workspace ||--o{ file_asset : "workspace_id"
+    art_activity ||--o| art_activity_content : "id"
+    student ||--o{ artwork : "student_id"
+    school ||--o{ artwork : "school_id"
+    art_activity ||--o{ artwork : "activity_id"
+    artwork ||--o| artwork_image : "id"
+    file_asset ||--o{ artwork_image : "asset_id"
+    artwork ||--o| artwork_reflection : "id"
+    school ||--o{ school_timetable : "school_id"
+    school_timetable ||--o{ timetable_period : "school_timetable_id"
+    school ||--o{ school_meal : "school_id"
+    school_meal ||--o{ school_meal_item : "school_meal_id"
+    school ||--o{ archive : "school_id"
+    archive ||--o| archive_detail : "id"
+    archive ||--o{ archive_case : "archive_id"
+    counseling_case ||--o{ archive_case : "case_id"
+    archive ||--o{ archive_transfer : "archive_id"
+    archive ||--o{ archive_export : "archive_id"
+    file_asset ||--o{ archive_export : "asset_id"
+    local_device ||--o{ backup_run : "local_device_id"
+    workspace ||--o{ audit_event : "workspace_id"

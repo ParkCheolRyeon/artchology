@@ -422,11 +422,47 @@
       width 200ms cubic-bezier(0.2, 0, 0, 1),
       height 200ms cubic-bezier(0.2, 0, 0, 1);
   }
+  .wt-tabbar {
+    gap: 6px;
+  }
   .wt-tabbar .wt-tab {
-    background: transparent;
+    background: #f1f4f8;
+    border-color: #d8e0eb;
+    border-radius: 9px 9px 5px 5px;
+    color: #526176;
+  }
+  .wt-tabbar .wt-tab:hover {
+    background: #e8eef6;
+    border-color: #bfccdc;
   }
   .wt-tabbar .wt-tab.active {
     background: transparent;
-    border-color: transparent;
+    border-color: #b8d8f5;
+  }
+  .wt-tabbar .wt-tab.active button[role='tab'] {
+    font-weight: 600;
+  }
+  .wt-tabbar .wt-tab button + button {
+    margin-right: 4px;
+    border-radius: 5px;
+  }
+  .wt-tabbar .wt-tab button + button:hover {
+    background: #dce5ef;
+    color: #334155;
+  }
+  .wt-tabbar .wt-tab.active button + button:hover {
+    background: #d5eaff;
+  }
+}
+
+@layer components {
+  .wt-demo-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  [data-slot='dialog-content'] > form.wt-demo-form > * {
+    margin-top: 0;
+    margin-bottom: 0;
   }
 }

@@ -182,13 +182,15 @@ export function Modal({
   subtitle,
   children,
   onClose,
-  busy = false
+  busy = false,
+  compact = false
 }: {
   title: string
   subtitle?: string
   children: ReactNode
   onClose: () => void
   busy?: boolean
+  compact?: boolean
 }): React.JSX.Element {
   const descriptionId = useId()
   return (
@@ -199,7 +201,10 @@ export function Modal({
       }}
     >
       <DialogContent
-        className="max-h-[88vh] gap-6 overflow-y-auto bg-white p-6 sm:max-w-[680px]"
+        className={cn(
+          'max-h-[88vh] gap-6 overflow-y-auto bg-white p-6 sm:max-w-[680px]',
+          compact && 'sm:max-w-[440px]'
+        )}
         showCloseButton={!busy}
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => {

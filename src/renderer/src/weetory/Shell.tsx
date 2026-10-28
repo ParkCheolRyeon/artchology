@@ -1,3 +1,5 @@
+import { AuthBoundary } from './AuthGate'
+import { useAuthStore } from './auth'
 import { TabIndicator } from '../components/TabIndicator'
 import { BrandIcon } from '../components/BrandIcon'
 import { Input as TextInput } from '../components/ui/input'
@@ -19,12 +21,11 @@ import {
   LockKeyhole,
   ChevronLeft,
   ChevronRight,
-  CircleCheck,
   HelpCircle
 } from 'lucide-react'
 import { WorkspaceProvider, useWorkspace } from './context'
 import { HOME_TABS, REPORT_TABS, SETTING_TABS, STAT_TABS, uid } from './model'
-import { Button, Modal, Field } from './ui'
+import { Button, Modal } from './ui'
 import { HomePage } from './Home'
 import { CasesPage } from './Cases'
 import { StudentsPage } from './Students'
@@ -39,7 +40,7 @@ const MENU = [
   { key: 'notices', label: '공지사항', path: '/notices', icon: Megaphone },
   { key: 'settings', label: '설정', path: '/settings', icon: Settings }
 ]
-const HOME_IDS = ['today', 'calendar', 'cases', 'stale', 'recent', 'archival', 'art']
+const HOME_IDS = ['today', 'calendar', 'cases', 'stale', 'recent', 'archival', 'art', 'school']
 const SETTING_IDS = [
   'general',
   'schools',
@@ -58,6 +59,7 @@ function sectionFor(path: string): string {
 }
 function titleFor(path: string): string {
   const section = sectionFor(path)
+  if (path.includes('#home-school')) return '학교 생활'
   if (path.includes('#home-art')) return '마음 그리기'
   if (path.includes('/sessions/new')) return '새 상담 기록'
   if (path.includes('/sessions/')) return '상담 상세'
@@ -77,8 +79,7 @@ interface Tab {
 }
 export default function WeetoryShell(): React.JSX.Element {
   const [tabs, setTabs] = useState<Tab[]>([{ id: 'home-tab', history: ['/'], index: 0 }]),
-    [active, setActive] = useState('home-tab'),
-    [notice, setNotice] = useState('')
+    [active, setActive] = useState('home-tab')
   const current = tabs.find((tab) => tab.id === active) ?? tabs[0],
     path = current.history[current.index]
   const navigate = (next: string): void => {
@@ -94,11 +95,6 @@ export default function WeetoryShell(): React.JSX.Element {
       )
     )
   }
-  useEffect(() => {
-    if (!notice) return
-    const timer = setTimeout(() => setNotice(''), 4000)
-    return () => clearTimeout(timer)
-  }, [notice])
   const addTab = (): void => {
     const id = uid()
     setTabs((prev) => [...prev, { id, history: ['/'], index: 0 }])
@@ -124,41 +120,34 @@ export default function WeetoryShell(): React.JSX.Element {
     return () => document.removeEventListener('keydown', handler)
   }, [])
   return (
-    <WorkspaceProvider path={path} navigate={navigate} notify={setNotice}>
-      <ShellBody
-        tabs={tabs}
-        active={active}
-        setActive={setActive}
-        addTab={addTab}
-        closeTab={closeTab}
-        back={() =>
-          setTabs((prev) =>
-            prev.map((tab) =>
-              tab.id === active ? { ...tab, index: Math.max(0, tab.index - 1) } : tab
+    <WorkspaceProvider path={path} navigate={navigate}>
+      <AuthBoundary>
+        <ShellBody
+          tabs={tabs}
+          active={active}
+          setActive={setActive}
+          addTab={addTab}
+          closeTab={closeTab}
+          back={() =>
+            setTabs((prev) =>
+              prev.map((tab) =>
+                tab.id === active ? { ...tab, index: Math.max(0, tab.index - 1) } : tab
+              )
             )
-          )
-        }
-        forward={() =>
-          setTabs((prev) =>
-            prev.map((tab) =>
-              tab.id === active
-                ? { ...tab, index: Math.min(tab.history.length - 1, tab.index + 1) }
-                : tab
+          }
+          forward={() =>
+            setTabs((prev) =>
+              prev.map((tab) =>
+                tab.id === active
+                  ? { ...tab, index: Math.min(tab.history.length - 1, tab.index + 1) }
+                  : tab
+              )
             )
-          )
-        }
-        canBack={current.index > 0}
-        canForward={current.index < current.history.length - 1}
-      />
-      {notice && (
-        <div className="toast" role="status">
-          <CircleCheck size={17} />
-          {notice}
-          <button aria-label="알림 닫기" onClick={() => setNotice('')}>
-            <X size={16} />
-          </button>
-        </div>
-      )}
+          }
+          canBack={current.index > 0}
+          canForward={current.index < current.history.length - 1}
+        />
+      </AuthBoundary>
     </WorkspaceProvider>
   )
 }
@@ -205,10 +194,7 @@ function ShellBody({
   const section = sectionFor(path)
   const [collapsed, setCollapsed] = useState(false),
     [query, setQuery] = useState(''),
-    [help, setHelp] = useState(false),
-    [locked, setLocked] = useState(false),
-    [pin, setPin] = useState(''),
-    [pinError, setPinError] = useState('')
+    [help, setHelp] = useState(false)
   const results = data.students.filter(
     (student) =>
       student.schoolId === data.activeSchoolId &&
@@ -396,14 +382,18 @@ function ShellBody({
                 </option>
               ))}
           </FormSelect>
+          <Button
+            className="max-w-44 truncate"
+            title={data.account.email || '로그인'}
+            variant="ghost"
+            onClick={() => navigate('/settings#settings-subscription')}
+          >
+            {data.account.logged ? data.account.email : '로그인'}
+          </Button>
           <button
             className="icon-button"
             aria-label="화면 잠금"
-            onClick={() => {
-              setPin('')
-              setPinError('')
-              setLocked(true)
-            }}
+            onClick={() => useAuthStore.getState().lock()}
           >
             <LockKeyhole size={19} />
           </button>
@@ -449,7 +439,7 @@ function ShellBody({
           {section === 'students' && <StudentsPage />}
           {section === 'statistics' && <StatisticsPage />}
           {section === 'reports' && <ReportsPage />}
-          {section === 'settings' && <SettingsPage />}
+          {section === 'settings' && <SettingsPage key={data.activeSchoolId} />}
           {section === 'notices' && <NoticesPage />}
         </main>
         <footer className="wt-footer">
@@ -482,44 +472,6 @@ function ShellBody({
             </Button>
           </div>
         </Modal>
-      )}
-      {locked && (
-        <div className="wt-lock">
-          <BrandIcon size={38} />
-          <h1>상담 공간이 잠겨 있습니다</h1>
-          <p>
-            {data.settings.pin
-              ? '설정한 PIN 네 자리를 입력해 주세요.'
-              : '화면 잠금 미리보기입니다. PIN은 보안 설정에서 정할 수 있어요.'}
-          </p>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault()
-              if (!data.settings.pin || pin === data.settings.pin) setLocked(false)
-              else setPinError('PIN이 일치하지 않습니다.')
-            }}
-          >
-            {data.settings.pin && (
-              <Field label="PIN">
-                <TextInput
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  autoFocus
-                />
-              </Field>
-            )}
-            {pinError && (
-              <p role="alert" className="form-error">
-                {pinError}
-              </p>
-            )}
-            <Button type="submit">잠금 해제</Button>
-          </form>
-          <small>화면 PoC · 실제 데이터 암호화는 다음 단계에서 연결합니다.</small>
-        </div>
       )}
     </div>
   )

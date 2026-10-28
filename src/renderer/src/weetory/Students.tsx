@@ -1,3 +1,4 @@
+import { toast } from '../lib/toast'
 import { Surface } from './ui'
 import {
   Table,
@@ -195,8 +196,7 @@ function RosterUpload({ onClose }: { onClose: () => void }): React.JSX.Element {
     [year, setYear] = useState(data.settings.schoolYear),
     [text, setText] = useState(''),
     [rows, setRows] = useState<UploadRow[]>([]),
-    [graduates, setGraduates] = useState<string[]>([]),
-    [error, setError] = useState('')
+    [graduates, setGraduates] = useState<string[]>([])
   const pupils = data.students.filter((s) => s.schoolId === data.activeSchoolId)
   const update = (index: number, patch: Partial<UploadRow>): void =>
     setRows((current) => current.map((row, i) => (i === index ? { ...row, ...patch } : row)))
@@ -223,11 +223,11 @@ function RosterUpload({ onClose }: { onClose: () => void }): React.JSX.Element {
         }
       })
     if (!parsed.length) {
-      setError('가져올 학생 정보를 입력해 주세요.')
+      toast.warn('가져올 학생 정보를 입력해 주세요.')
       return
     }
     setRows(parsed)
-    setError('')
+
     setStep(1)
   }
   const invalid =
@@ -312,7 +312,7 @@ function RosterUpload({ onClose }: { onClose: () => void }): React.JSX.Element {
             </Button>
             <Button onClick={parse}>미리보기</Button>
           </div>
-          {error && <p role="alert">{error}</p>}
+
           <details>
             <summary>교무부에 보낼 요청 메시지</summary>
             <p>
@@ -487,7 +487,7 @@ function RosterUpload({ onClose }: { onClose: () => void }): React.JSX.Element {
                   return { ...d, students }
                 })
                 setStep(3)
-                notify('명렬표를 화면 데이터에 반영했습니다.')
+                notify('명렬표를 화면 데이터에 반영했습니다.', 'success')
               }}
             >
               총 {rows.length}명 가져오기 확정
@@ -947,7 +947,7 @@ export function StudentsPage(): React.JSX.Element {
                 }))
                 setRemove([])
                 setSelected([])
-                notify('학생이 삭제되었습니다.')
+                notify('학생이 삭제되었습니다.', 'success')
                 if (student) navigate('/students')
               }}
             >
@@ -986,7 +986,7 @@ export function StudentsPage(): React.JSX.Element {
                 }))
                 setStatusTarget(null)
                 setSelected([])
-                notify('재학 상태가 변경되었습니다.')
+                notify('재학 상태가 변경되었습니다.', 'success')
               }}
             >
               확인
@@ -1018,7 +1018,7 @@ export function StudentsPage(): React.JSX.Element {
                 )
               }))
               setAcademic(null)
-              notify('학적이 저장되었습니다.')
+              notify('학적이 저장되었습니다.', 'success')
             }}
           >
             <EnrollmentFields value={academic} onChange={setAcademic} />

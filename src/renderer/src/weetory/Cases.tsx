@@ -1,3 +1,6 @@
+import { toast } from '../lib/toast'
+import { PeriodButtons } from './PeriodButtons'
+import { Consents } from './Consents'
 import { Surface } from './ui'
 import {
   Table,
@@ -13,16 +16,7 @@ import { DateInput, FormSelect, FormCheckbox } from '../components/form-controls
 import { useState } from 'react'
 import { Plus, FileText, ArrowRight, Download, Settings, Pencil } from 'lucide-react'
 import { useWorkspace } from './context'
-import {
-  CATEGORIES,
-  TOPICS,
-  day,
-  uid,
-  type CaseRecord,
-  type Meeting,
-  type Concept,
-  type Consent
-} from './model'
+import { CATEGORIES, TOPICS, day, uid, type CaseRecord, type Meeting, type Concept } from './model'
 import { Back, Badge, Button, DemoNotice, Empty, Field, Modal, PageHeading, Tabs } from './ui'
 
 const detailTabs = ['개요', '사례 개념화', '상담 기록', '동의서']
@@ -260,7 +254,7 @@ function CaseList(): React.JSX.Element {
 function CaseForm({ record }: { record?: CaseRecord }): React.JSX.Element {
   const { data, setData, navigate, notify, path } = useWorkspace()
   const [search, setSearch] = useState('')
-  const [error, setError] = useState('')
+
   const year = data.settings.schoolYear
   const pattern = data.numberPattern.match(/^(.*)\[(\d)자리\](?: 시작 (\d+))?$/)
   const prefix = pattern?.[1] ?? `${year}-`
@@ -302,7 +296,7 @@ function CaseForm({ record }: { record?: CaseRecord }): React.JSX.Element {
   const submit = (e: React.FormEvent): void => {
     e.preventDefault()
     if (!form.studentIds.length || !form.complaint.trim()) {
-      setError('학생을 한 명 이상 선택하고 주호소를 입력해 주세요.')
+      toast.warn('학생을 한 명 이상 선택하고 주호소를 입력해 주세요.')
       return
     }
     if (
@@ -310,7 +304,7 @@ function CaseForm({ record }: { record?: CaseRecord }): React.JSX.Element {
         (c) => c.id !== form.id && c.schoolId === form.schoolId && c.number === form.number.trim()
       )
     ) {
-      setError('이미 사용 중인 사례번호입니다. 다른 번호를 입력해 주세요.')
+      toast.warn('이미 사용 중인 사례번호입니다. 다른 번호를 입력해 주세요.')
       return
     }
     setData((d) => ({
@@ -420,7 +414,7 @@ function CaseForm({ record }: { record?: CaseRecord }): React.JSX.Element {
             onChange={(v) => patch('notes', v)}
           />
         </Surface>
-        {error && <p role="alert">{error}</p>}
+
         <div className="wt-actions">
           <Button type="button" variant="secondary" onClick={cancel}>
             취소
@@ -449,7 +443,7 @@ function CaseDetail({ record }: { record: CaseRecord }): React.JSX.Element {
         sessions: d.sessions.filter((s) => s.caseId !== record.id)
       }))
       navigate('/cases')
-      notify('사례와 연결된 상담 기록을 삭제했습니다.')
+      notify('사례와 연결된 상담 기록을 삭제했습니다.', 'success')
     } else {
       setData((d) => ({
         ...d,
@@ -662,7 +656,7 @@ function Concepts({ record }: { record: CaseRecord }): React.JSX.Element {
       )
     }))
     setDraft(null)
-    notify('사례개념화 문서를 저장했습니다.')
+    notify('사례개념화 문서를 저장했습니다.', 'success')
   }
   return (
     <div className="wt-stack">
@@ -848,7 +842,7 @@ function Concepts({ record }: { record: CaseRecord }): React.JSX.Element {
               setCustom(false)
               setCustomName('')
               setCustomFields('')
-              notify('내 양식을 추가했습니다.')
+              notify('내 양식을 추가했습니다.', 'success')
             }}
           >
             양식 저장
@@ -883,179 +877,6 @@ function Concepts({ record }: { record: CaseRecord }): React.JSX.Element {
     </div>
   )
 }
-function Consents({ record }: { record: CaseRecord }): React.JSX.Element {
-  const { data, setData, notify } = useWorkspace()
-  const [draft, setDraft] = useState<Consent | null>(null),
-    [view, setView] = useState<Consent | null>(null),
-    [log, setLog] = useState(false),
-    [send, setSend] = useState(false),
-    [channel, setChannel] = useState('링크 직접 전달(복사)'),
-    [selected, setSelected] = useState<string[]>([])
-  const pupils = data.students.filter((s) => record.studentIds.includes(s.id))
-  return (
-    <div className="wt-stack">
-      <div className="wt-toolbar">
-        <h2>동의서 목록</h2>
-        <Button variant="secondary" onClick={() => setLog(true)}>
-          처리 기록
-        </Button>
-        <Button variant="secondary" onClick={() => setSend(true)}>
-          동의서 발송
-        </Button>
-        <Button
-          onClick={() =>
-            setDraft({
-              id: uid(),
-              title: '학생 상담 및 개인정보 수집·이용 동의서',
-              studentId: pupils[0]?.id || '',
-              status: '작성 중',
-              date: day(),
-              body: '상담 목적: 학생의 건강한 학교생활과 정서적 성장을 지원합니다.\n수집 항목: 학생 기본정보, 상담 기록, 보호자 연락처\n보유 기간: 학교 개인정보 처리 기준에 따릅니다.\n동의를 거부할 권리가 있으며, 상담 제공 범위가 제한될 수 있습니다.\n\n상담 참여 동의 □ 동의 □ 미동의\n개인정보 수집·이용 동의 □ 동의 □ 미동의\n보호자 성명:                 서명:'
-            })
-          }
-        >
-          새 동의서 작성
-        </Button>
-      </div>
-      <p className="wt-note">
-        화면 PoC입니다. 문서 작성과 전달 방법을 미리 볼 수 있으며 실제 링크 생성·SMS 발송·응답
-        수집은 연결되지 않았습니다.
-      </p>
-      {record.consents.length ? (
-        <div className="wt-grid">
-          {record.consents.map((c) => (
-            <div
-              className="surface wt-card text-left transition-colors hover:border-primary/30"
-              key={c.id}
-            >
-              <Badge tone="gray">{c.status}</Badge>
-              <h3>{c.title}</h3>
-              <p>
-                {data.students.find((s) => s.id === c.studentId)?.name} · {c.date}
-              </p>
-              <Button variant="ghost" onClick={() => setView(c)}>
-                동의서 보기
-              </Button>
-              <Button variant="ghost" onClick={() => setDraft({ ...c })}>
-                수정
-              </Button>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <Empty
-          title="작성한 동의서가 없습니다"
-          description="상담 참여와 개인정보 수집·이용 내용을 먼저 작성해 보세요."
-        />
-      )}
-      {draft && (
-        <Modal title="동의서 작성" onClose={() => setDraft(null)}>
-          <Input
-            label="문서 제목"
-            value={draft.title}
-            onChange={(v) => setDraft({ ...draft, title: v })}
-          />
-          <Field label="학생">
-            <FormSelect
-              value={draft.studentId}
-              onValueChange={(e) => setDraft({ ...draft, studentId: e })}
-            >
-              {pupils.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </FormSelect>
-          </Field>
-          <Text
-            label="동의서 내용"
-            value={draft.body}
-            rows={12}
-            onChange={(v) => setDraft({ ...draft, body: v })}
-          />
-          <Button
-            disabled={!draft.title.trim() || !draft.studentId || !draft.body.trim()}
-            onClick={() => {
-              setData((d) => ({
-                ...d,
-                cases: d.cases.map((c) =>
-                  c.id === record.id
-                    ? {
-                        ...c,
-                        consents: c.consents.some((x) => x.id === draft.id)
-                          ? c.consents.map((x) => (x.id === draft.id ? draft : x))
-                          : [...c.consents, draft]
-                      }
-                    : c
-                )
-              }))
-              setDraft(null)
-              notify('동의서 초안을 저장했습니다.')
-            }}
-          >
-            초안 저장
-          </Button>
-        </Modal>
-      )}
-      {view && (
-        <Modal title={view.title} onClose={() => setView(null)}>
-          <p>학생: {data.students.find((s) => s.id === view.studentId)?.name}</p>
-          <div className="wt-preview" style={{ whiteSpace: 'pre-wrap' }}>
-            {view.body}
-          </div>
-          <p className="wt-note">서명·응답이 없는 초안입니다.</p>
-          <Button onClick={() => download(`${view.title}.txt`, view.body)}>
-            초안 텍스트 다운로드
-          </Button>
-        </Modal>
-      )}
-      {send && (
-        <Modal title="동의서 발송 미리보기" onClose={() => setSend(false)}>
-          <h3>동의서 선택 (여러 개 선택 가능)</h3>
-          {record.consents.map((c) => (
-            <label className="wt-choice" key={c.id}>
-              <FormCheckbox
-                checked={selected.includes(c.id)}
-                onCheckedChange={(e) =>
-                  setSelected((v) => (e ? [...v, c.id] : v.filter((id) => id !== c.id)))
-                }
-              />
-              {c.title} · {pupils.find((s) => s.id === c.studentId)?.name}
-            </label>
-          ))}
-          {!record.consents.length && <p>먼저 동의서 초안을 작성해 주세요.</p>}
-          <Select
-            label="전달 방법"
-            value={channel}
-            onChange={setChannel}
-            options={['링크 직접 전달(복사)', '보호자에게 SMS 발송']}
-          />
-          <p className="wt-note">
-            선택한 동의서 {selected.length}개 · 실제 발송 서버 미연결. 링크나 문자를 생성하지
-            않습니다.
-          </p>
-          <Button variant="secondary" onClick={() => setSend(false)}>
-            미리보기 닫기
-          </Button>
-        </Modal>
-      )}
-      {log && (
-        <Modal title="동의서 처리 기록" onClose={() => setLog(false)}>
-          {record.consents.length ? (
-            record.consents.map((c) => (
-              <p key={c.id}>
-                {c.date} · {c.title} · 초안 작성
-              </p>
-            ))
-          ) : (
-            <p>기록된 이벤트가 없습니다.</p>
-          )}
-          <p className="wt-note">실제 발송 및 응답 기록은 없습니다.</p>
-        </Modal>
-      )}
-    </div>
-  )
-}
 function SessionPage({
   record,
   session,
@@ -1069,7 +890,6 @@ function SessionPage({
   const [remove, setRemove] = useState(false),
     [print, setPrint] = useState(false),
     [includeNeis, setIncludeNeis] = useState(true),
-    [error, setError] = useState(''),
     [workspace, setWorkspace] = useState('상담 기록')
   const [draft, setDraft] = useState<Meeting>(
     session ?? {
@@ -1081,7 +901,7 @@ function SessionPage({
       start: `${day()}T09:00`,
       end: `${day()}T09:40`,
       allDay: false,
-      category: '개인상담',
+      category: data.settings.defaultClassification,
       categoryMedium: '학교생활',
       categoryDetail: '일반 상담',
       counselingClass: '상담',
@@ -1112,11 +932,11 @@ function SessionPage({
   const save = (e: React.FormEvent): void => {
     e.preventDefault()
     if (!draft.studentIds.length && draft.category !== '연구') {
-      setError('연구 분류를 제외한 상담은 참여 학생을 한 명 이상 선택해야 합니다.')
+      toast.warn('연구 분류를 제외한 상담은 참여 학생을 한 명 이상 선택해야 합니다.')
       return
     }
     if (!draft.start || !draft.end || new Date(draft.end) <= new Date(draft.start)) {
-      setError('상담 시작·종료 시간을 확인해 주세요.')
+      toast.warn('상담 시작·종료 시간을 확인해 주세요.')
       return
     }
     setData((d) => ({
@@ -1127,7 +947,7 @@ function SessionPage({
           )
         : [...d.sessions, { ...draft, title: draft.neisTitle || draft.category }]
     }))
-    notify('상담 기록을 저장했습니다.')
+    notify('상담 기록을 저장했습니다.', 'success')
     navigate(`${base}/sessions/${draft.id}`)
   }
   return (
@@ -1314,24 +1134,15 @@ function SessionPage({
               PoC에서는 알림이 발송되지 않습니다.
             </p>
             {editing && (
-              <div className="wt-toolbar">
-                {data.settings.timetable.map((t) => (
-                  <Button
-                    key={t.name}
-                    type="button"
-                    variant="secondary"
-                    onClick={() =>
-                      setDraft((d) => ({
-                        ...d,
-                        start: `${d.start.slice(0, 10)}T${t.start}`,
-                        end: `${d.start.slice(0, 10)}T${t.end}`
-                      }))
-                    }
-                  >
-                    {t.name} {t.start}
-                  </Button>
-                ))}
-              </div>
+              <PeriodButtons
+                onSelect={(start, end) =>
+                  setDraft((d) => ({
+                    ...d,
+                    start: `${d.start.slice(0, 10)}T${start}`,
+                    end: `${d.start.slice(0, 10)}T${end}`
+                  }))
+                }
+              />
             )}
           </fieldset>
         </Surface>
@@ -1392,7 +1203,7 @@ function SessionPage({
             </>
           )}
         </Surface>
-        {error && <p role="alert">{error}</p>}
+
         {editing && (
           <div className="wt-actions">
             <Button
@@ -1417,7 +1228,7 @@ function SessionPage({
               onClick={() => {
                 setData((d) => ({ ...d, sessions: d.sessions.filter((s) => s.id !== session?.id) }))
                 navigate(base)
-                notify('상담 기록을 삭제했습니다.')
+                notify('상담 기록을 삭제했습니다.', 'success')
               }}
             >
               삭제
@@ -1487,17 +1298,16 @@ function Numbers(): React.JSX.Element {
     [start, setStart] = useState('1'),
     [retro, setRetro] = useState(false),
     [preview, setPreview] = useState(false),
-    [error, setError] = useState(''),
     [historyId, setHistoryId] = useState('')
   const changes = records.filter((c) => edits[c.id] !== undefined && edits[c.id] !== c.number)
   const example = `${prefix}${String(Number(start) || 1).padStart(Number(digits), '0')}`
   const prepare = (): void => {
     const vals = records.map((c) => edits[c.id] ?? c.number)
     if (vals.some((v) => !v.trim()) || new Set(vals).size !== vals.length) {
-      setError('사례번호가 비어 있거나 중복되어 있습니다.')
+      toast.error('사례번호가 비어 있거나 중복되어 있습니다.')
       return
     }
-    setError('')
+
     setPreview(true)
   }
   const apply = (): void => {
@@ -1509,7 +1319,7 @@ function Numbers(): React.JSX.Element {
       new Set(proposed).size !== proposed.length
     ) {
       setPreview(false)
-      setError('사례번호가 비어 있거나 중복되어 있습니다. 변경 번호를 확인해 주세요.')
+      toast.warn('사례번호가 비어 있거나 중복되어 있습니다. 변경 번호를 확인해 주세요.')
       return
     }
     const before = Object.fromEntries(changes.map((c) => [c.id, c.number])),
@@ -1537,7 +1347,7 @@ function Numbers(): React.JSX.Element {
     }))
     setPreview(false)
     setEdits({})
-    notify('번호 설정을 화면 PoC에 적용했습니다.')
+    notify('번호 설정을 화면 PoC에 적용했습니다.', 'success')
   }
   const history = data.numberHistory.find((h) => h.id === historyId)
   return (
@@ -1749,7 +1559,7 @@ function Numbers(): React.JSX.Element {
           )}
         </Surface>
       )}
-      {error && <p role="alert">{error}</p>}
+
       {preview && (
         <Modal title="사례번호 변경 미리보기" onClose={() => setPreview(false)}>
           {tab === '자동 사례번호 설정' && <p>새 번호 예시: {example}</p>}
@@ -1829,8 +1639,7 @@ function NeisImport(): React.JSX.Element {
   const [step, setStep] = useState(0),
     [file, setFile] = useState(''),
     [selectedCase, setSelectedCase] = useState(''),
-    [text, setText] = useState(''),
-    [error, setError] = useState('')
+    [text, setText] = useState('')
   const rows = text
     .trim()
     .split('\n')
@@ -1892,10 +1701,10 @@ function NeisImport(): React.JSX.Element {
             disabled={!text.trim()}
             onClick={() => {
               if (rows.some((r) => !/^\d{4}-\d{2}-\d{2}$/.test(r.date) || !r.title)) {
-                setError('각 행에 YYYY-MM-DD 날짜와 상담제목을 탭으로 구분해 입력해 주세요.')
+                toast.warn('각 행에 YYYY-MM-DD 날짜와 상담제목을 탭으로 구분해 입력해 주세요.')
                 return
               }
-              setError('')
+
               setStep(1)
             }}
           >
@@ -1970,7 +1779,7 @@ function NeisImport(): React.JSX.Element {
                   start: `${r.date}T09:00`,
                   end: `${r.date}T09:40`,
                   allDay: false,
-                  category: '개인상담',
+                  category: data.settings.defaultClassification,
                   categoryMedium: '학교생활',
                   categoryDetail: '일반 상담',
                   counselingClass: '상담',
@@ -1997,7 +1806,6 @@ function NeisImport(): React.JSX.Element {
           </div>
         </Surface>
       )}
-      {error && <p role="alert">{error}</p>}
     </div>
   )
 }

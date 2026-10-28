@@ -1,32 +1,35 @@
+import { toast, type ToastTone } from '../lib/toast'
 import {
   createContext,
   useContext,
-  useState,
   type ReactNode,
   type Dispatch,
   type SetStateAction
 } from 'react'
-import { createDemo, type WorkspaceData } from './model'
+import { type WorkspaceData } from './model'
+import { useWorkspaceStore } from './store'
 export interface WorkspaceContext {
   data: WorkspaceData
   setData: Dispatch<SetStateAction<WorkspaceData>>
   path: string
   navigate: (path: string) => void
-  notify: (message: string) => void
+  notify: (message: string, tone?: ToastTone) => void
 }
 const Context = createContext<WorkspaceContext | null>(null)
 export function WorkspaceProvider({
   children,
   path,
-  navigate,
-  notify
+  navigate
 }: {
   children: ReactNode
   path: string
   navigate: (path: string) => void
-  notify: (message: string) => void
 }): React.JSX.Element {
-  const [data, setData] = useState(createDemo)
+  const data = useWorkspaceStore((state) => state.data)
+  const setData = useWorkspaceStore((state) => state.setData)
+  const notify = (message: string, tone: ToastTone = 'info'): void => {
+    toast[tone](message)
+  }
   return (
     <Context.Provider value={{ data, setData, path, navigate, notify }}>
       {children}

@@ -1,3 +1,4 @@
+import { toast } from '../lib/toast'
 import { Tabs, Modal } from './ui'
 import { useWorkspace } from './context'
 import { uid } from './model'
@@ -52,7 +53,7 @@ export function ArtStudio(): React.JSX.Element {
   const [eraser, setEraser] = useState(false)
   const [reflection, setReflection] = useState('')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+
   const [confirm, setConfirm] = useState<'leave' | 'clear' | null>(null)
   const [count, setCount] = useState(0)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -89,7 +90,7 @@ export function ArtStudio(): React.JSX.Element {
   async function storeDrawing(): Promise<void> {
     if (!activity || !canvasRef.current || !studentId || !count) return
     setBusy(true)
-    setError('')
+
     try {
       const drawing = {
         id: uid(),
@@ -101,12 +102,12 @@ export function ArtStudio(): React.JSX.Element {
         reflection
       }
       setData((previous) => ({ ...previous, drawings: [...previous.drawings, drawing] }))
-      notify('마음 그림과 메모를 작품 보관함에 저장했습니다.')
+      notify('마음 그림과 메모를 작품 보관함에 저장했습니다.', 'success')
       setBusy(false)
       setActivity(null)
       setView('작품 보관함')
     } catch (error) {
-      setError(errorMessage(error))
+      toast.error(errorMessage(error))
       setBusy(false)
     }
   }
@@ -156,7 +157,6 @@ export function ArtStudio(): React.JSX.Element {
                     strokes.current = []
                     setCount(0)
                     setReflection('')
-                    setError('')
                   }}
                 >
                   <div
@@ -326,11 +326,6 @@ export function ArtStudio(): React.JSX.Element {
             />
           </Field>
           <p>저장한 그림과 메모는 작품 보관함에서 다시 볼 수 있어요.</p>
-          {error && (
-            <p role="alert" className="form-error">
-              {error}
-            </p>
-          )}
         </aside>
       </div>
       {confirm && (

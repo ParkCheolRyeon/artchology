@@ -1,3 +1,5 @@
+import { toast } from '../lib/toast'
+import { PeriodButtons } from './PeriodButtons'
 import { Input as TextInput } from '../components/ui/input'
 import { Textarea } from '../components/ui/textarea'
 import { FormSelect, FormCheckbox, DateInput } from '../components/form-controls'
@@ -80,8 +82,7 @@ export function ScheduleEditor({
   const [lastDay, setLastDay] = useState(
     meeting.allDay ? plusDay(meeting.end, -1) : meeting.end.slice(0, 10)
   )
-  const [error, setError] = useState(''),
-    [deleting, setDeleting] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const cases = data.cases.filter(
     (row) =>
       row.schoolId === data.activeSchoolId && (row.status === '진행' || row.id === draft.caseId)
@@ -94,11 +95,11 @@ export function ScheduleEditor({
     const start = draft.allDay ? draft.start.slice(0, 10) : draft.start
     const end = draft.allDay ? plusDay(lastDay, 1) : draft.end
     if (!draft.title.trim()) {
-      setError('일정 제목을 입력하세요.')
+      toast.warn('일정 제목을 입력하세요.')
       return
     }
     if (new Date(end).getTime() <= new Date(start).getTime()) {
-      setError('종료 일시는 시작 일시보다 뒤여야 합니다.')
+      toast.error('종료 일시는 시작 일시보다 뒤여야 합니다.')
       return
     }
     const saved = { ...draft, title: draft.title.trim(), start, end }
@@ -166,6 +167,21 @@ export function ScheduleEditor({
               }}
             />
           </Field>
+          {!draft.allDay && (
+            <div className="field-full">
+              <PeriodButtons
+                onSelect={(start, end) => {
+                  const date = draft.start.slice(0, 10)
+                  setDraft((prev) => ({
+                    ...prev,
+                    start: `${date}T${start}`,
+                    end: `${date}T${end}`
+                  }))
+                  setLastDay(date)
+                }}
+              />
+            </div>
+          )}
           <Field label="연결 사례">
             <FormSelect
               value={draft.caseId}
@@ -234,11 +250,7 @@ export function ScheduleEditor({
             ))}
           </div>
         </div>
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
+
         {deleting && (
           <div className="wt-warning">
             <p>이 일정을 삭제할까요? 연결된 사례는 유지됩니다.</p>
@@ -250,7 +262,7 @@ export function ScheduleEditor({
                   ...prev,
                   sessions: prev.sessions.filter((row) => row.id !== draft.id)
                 }))
-                notify('일정을 삭제했습니다.')
+                notify('일정을 삭제했습니다.', 'success')
                 close()
               }}
             >
@@ -346,7 +358,7 @@ export function CalendarWorkspace({ compact = false }: { compact?: boolean }): R
           : row
       )
     }))
-    notify('일정 시간을 변경했습니다.')
+    notify('일정 시간을 변경했습니다.', 'success')
   }
   return (
     <section

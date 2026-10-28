@@ -1,3 +1,6 @@
+import { PinSettings } from './PinSettings'
+import { TimetableSettings } from './TimetableSettings'
+import { AccountPanel } from './AccountPanel'
 import { Surface } from './ui'
 import {
   Table,
@@ -431,9 +434,9 @@ export function ReportsPage(): React.JSX.Element {
   async function copy(value: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(value)
-      notify('복사했습니다.')
+      notify('복사했습니다.', 'success')
     } catch {
-      notify('클립보드를 사용할 수 없습니다. 문구를 선택해 복사해 주세요.')
+      notify('클립보드를 사용할 수 없습니다. 문구를 선택해 복사해 주세요.', 'error')
     }
   }
   return (
@@ -749,7 +752,7 @@ function ArchivalWorkspace(): React.JSX.Element {
                 setData((d) => ({ ...d, archives: [...d.archives, archive] }))
                 setCreate(false)
                 setDetail(archive)
-                notify('기록물철을 화면에 추가했습니다.')
+                notify('기록물철을 화면에 추가했습니다.', 'success')
               }}
             >
               생성
@@ -794,7 +797,7 @@ function ArchivalWorkspace(): React.JSX.Element {
               variant="secondary"
               onClick={() => {
                 update(detail)
-                notify('기록물철 정보를 저장했습니다.')
+                notify('기록물철 정보를 저장했습니다.', 'success')
               }}
             >
               정보 저장
@@ -822,7 +825,7 @@ function ArchivalWorkspace(): React.JSX.Element {
                   .writeText(
                     `기록물철 제목: ${detail.title}\n생산연도: ${detail.year}\n공개여부: 비공개\n열람범위: 직원 열람제한`
                   )
-                  .then(() => notify('등록 정보를 복사했습니다.'))
+                  .then(() => notify('등록 정보를 복사했습니다.', 'success'))
                   .catch(() => notify('텍스트를 직접 선택해 복사해 주세요.'))
               }}
             >
@@ -898,54 +901,36 @@ export function SettingsPage(): React.JSX.Element {
   const { data, setData, path, navigate, notify } = useWorkspace()
   const raw = path.split('#settings-')[1] || 'general',
     tab = settingKeys.includes(raw) ? raw : 'general'
-  const [prefs, setPrefs] = useState(data.settings),
+  const [prefs, setPrefs] = useState({
+      ...data.settings,
+      timetable:
+        data.schools.find((s) => s.id === data.activeSchoolId)?.timetable ?? data.settings.timetable
+    }),
     [extra, setExtra] = useState({
-      affiliation: '학교',
-      classification: '개인상담',
+      affiliation: data.settings.affiliation,
+      classification: data.settings.defaultClassification,
       stale: 30,
       sound: true,
       interval: '일주일마다',
       folder: '문서 / 위토리 / 백업'
     }),
     [school, setSchool] = useState<School | null>(null),
-    [pin, setPin] = useState({ current: '', next: '', confirm: '' }),
-    [recovery, setRecovery] = useState(''),
-    [verify, setVerify] = useState(''),
     [modal, setModal] = useState(''),
     [snapshot, setSnapshot] = useState<WorkspaceData | null>(null),
-    [previous, setPrevious] = useState<WorkspaceData | null>(null),
-    [account, setAccount] = useState({
-      email: '',
-      logged: false,
-      code: '',
-      otp: '',
-      requested: false
-    }),
-    [locked, setLocked] = useState(false)
+    [previous, setPrevious] = useState<WorkspaceData | null>(null)
   const active = data.schools.find((s) => s.id === data.activeSchoolId)
   function save(): void {
-    setData((d) => ({ ...d, settings: { ...prefs, schoolYear: d.settings.schoolYear } }))
-    notify('설정을 화면에 적용했습니다.')
-  }
-  function changeTime(index: number, key: 'start' | 'end', value: string): void {
-    const rows = prefs.timetable.map((t) => ({ ...t }))
-    rows[index][key] = value
-    const mins = (v: string): number => {
-      const [h, m] = v.split(':').map(Number)
-      return h * 60 + m
-    }
-    const fmt = (m: number): string =>
-      `${String(Math.floor(((m + 1440) % 1440) / 60)).padStart(2, '0')}:${String((m + 1440) % 60).padStart(2, '0')}`
-    if (key === 'start') {
-      const delta = mins(value) - mins(prefs.timetable[index].start)
-      rows[index].end = fmt(mins(rows[index].end) + delta)
-    }
-    const delta = mins(rows[index].end) - mins(prefs.timetable[index].end)
-    for (let i = index + 1; i < rows.length; i++) {
-      rows[i].start = fmt(mins(rows[i].start) + delta)
-      rows[i].end = fmt(mins(rows[i].end) + delta)
-    }
-    setPrefs({ ...prefs, timetable: rows })
+    setData((d) => ({
+      ...d,
+      settings: {
+        ...prefs,
+        affiliation: extra.affiliation,
+        defaultClassification: extra.classification,
+        timetable: d.settings.timetable,
+        schoolYear: d.settings.schoolYear
+      }
+    }))
+    notify('설정을 화면에 적용했습니다.', 'success')
   }
   return (
     <>
@@ -977,9 +962,11 @@ export function SettingsPage(): React.JSX.Element {
                 value={extra.affiliation}
                 onValueChange={(e) => setExtra({ ...extra, affiliation: e })}
               >
-                {['학교', 'Wee센터', '교육지원청', '기타'].map((x) => (
-                  <option key={x}>{x}</option>
-                ))}
+                {['전문상담교사', '전문상담사', '학교', 'Wee센터', '교육지원청', '기타'].map(
+                  (x) => (
+                    <option key={x}>{x}</option>
+                  )
+                )}
               </FormSelect>
             </Field>
             <Field label="상담분류 기본값">
@@ -1110,184 +1097,8 @@ export function SettingsPage(): React.JSX.Element {
           </Button>
         </Panel>
       )}
-      {tab === 'timetable' && (
-        <Panel title="시간표(교시) 설정">
-          <p>
-            {active?.name} · 시작 시각 또는 종료 시각을 바꾸면 다음 교시도 간격을 유지하며
-            이동합니다.
-          </p>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>교시</TableHead>
-                <TableHead>시작</TableHead>
-                <TableHead>종료</TableHead>
-                <TableHead>소요</TableHead>
-                <th />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {prefs.timetable.map((t, i) => (
-                <TableRow key={i}>
-                  <TableCell>
-                    <TextInput
-                      aria-label={`${i + 1}행 교시`}
-                      value={t.name}
-                      onChange={(e) =>
-                        setPrefs({
-                          ...prefs,
-                          timetable: prefs.timetable.map((x, j) =>
-                            i === j ? { ...x, name: e.target.value } : x
-                          )
-                        })
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <TextInput
-                      aria-label={`${i + 1}행 시작`}
-                      type="time"
-                      value={t.start}
-                      onChange={(e) => changeTime(i, 'start', e.target.value)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <TextInput
-                      aria-label={`${i + 1}행 종료`}
-                      type="time"
-                      value={t.end}
-                      onChange={(e) => changeTime(i, 'end', e.target.value)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {Math.round(
-                      (new Date(`2026-01-01T${t.end}`).getTime() -
-                        new Date(`2026-01-01T${t.start}`).getTime()) /
-                        60000
-                    )}
-                    분
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      onClick={() =>
-                        setPrefs({ ...prefs, timetable: prefs.timetable.filter((_, j) => i !== j) })
-                      }
-                    >
-                      삭제
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <Actions>
-            <Button
-              variant="secondary"
-              onClick={() =>
-                setPrefs({
-                  ...prefs,
-                  timetable: [
-                    ...prefs.timetable,
-                    { name: `${prefs.timetable.length + 1}교시`, start: '14:40', end: '15:20' }
-                  ]
-                })
-              }
-            >
-              행 추가
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() =>
-                setPrefs({
-                  ...prefs,
-                  timetable: Array.from({ length: 6 }, (_, i) => ({
-                    name: `${i + 1}교시`,
-                    start: `${String(9 + i).padStart(2, '0')}:00`,
-                    end: `${String(9 + i).padStart(2, '0')}:40`
-                  }))
-                })
-              }
-            >
-              기본값으로 재생성
-            </Button>
-            <Button onClick={save}>시간표 저장</Button>
-          </Actions>
-        </Panel>
-      )}
-      {tab === 'security' && (
-        <>
-          <Panel title="PIN 변경">
-            <p>
-              화면 흐름을 확인하기 위한 PIN입니다. 실제 데이터 암호화나 기기 잠금은 수행하지
-              않습니다.
-            </p>
-            <div className="form-grid">
-              {(['current', 'next', 'confirm'] as const).map((key, i) => (
-                <Field key={key} label={['현재 PIN', '새 PIN', '새 PIN 확인'][i]}>
-                  <TextInput
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={4}
-                    value={pin[key]}
-                    onChange={(e) => setPin({ ...pin, [key]: e.target.value.replace(/\D/g, '') })}
-                  />
-                </Field>
-              ))}
-            </div>
-            <Actions>
-              <Button
-                disabled={!/^\d{4}$/.test(pin.next) || pin.next !== pin.confirm}
-                onClick={() => {
-                  if (data.settings.pin && pin.current !== data.settings.pin) {
-                    notify('현재 PIN이 일치하지 않습니다.')
-                    return
-                  }
-                  setData((d) => ({ ...d, settings: { ...d.settings, pin: pin.next } }))
-                  setPrefs((p) => ({ ...p, pin: pin.next }))
-                  setPin({ current: '', next: '', confirm: '' })
-                  notify('PoC PIN을 변경했습니다.')
-                }}
-              >
-                PIN 변경
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setLocked(true)
-                  setVerify('')
-                }}
-              >
-                잠금 화면 미리보기
-              </Button>
-            </Actions>
-          </Panel>
-          <Panel title="복구 코드">
-            <p>예시 코드로 생성·확인 흐름을 체험합니다. 실제 암호화 키가 아닙니다.</p>
-            {recovery && (
-              <>
-                <code className="wt-code">{recovery}</code>
-                <Field label="복구 코드 확인">
-                  <TextInput value={verify} onChange={(e) => setVerify(e.target.value)} />
-                </Field>
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    notify(
-                      verify === recovery ? '예시 코드가 일치합니다.' : '코드가 일치하지 않습니다.'
-                    )
-                  }
-                >
-                  코드 확인
-                </Button>
-              </>
-            )}
-            <Button variant="secondary" onClick={() => setModal('recovery')}>
-              {recovery ? '복구 코드 재생성' : '복구 코드 생성'}
-            </Button>
-          </Panel>
-        </>
-      )}
+      {tab === 'timetable' && <TimetableSettings key={data.activeSchoolId} />}
+      {tab === 'security' && <PinSettings />}
       {tab === 'backup' && (
         <Panel title="데이터 백업 / 복원">
           <p>
@@ -1386,36 +1197,7 @@ export function SettingsPage(): React.JSX.Element {
           </Actions>
         </Panel>
       )}
-      {tab === 'subscription' && (
-        <Panel title="구독 / 계정">
-          <Badge tone="blue">협업 PoC</Badge>
-          <p>{account.logged ? `${account.email} · 로그인 화면 체험 중` : '로그인되지 않음'}</p>
-          <p>계정·결제 서버를 연결하지 않았습니다. 아래 동작은 화면 시뮬레이션입니다.</p>
-          <Actions>
-            {account.logged ? (
-              <>
-                <Button variant="secondary" onClick={() => setModal('redeem')}>
-                  구독 코드 등록
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => notify('PoC 상태입니다. 구독 서버에 요청하지 않았습니다.')}
-                >
-                  새로고침
-                </Button>
-                <Button variant="ghost" onClick={() => setAccount({ ...account, logged: false })}>
-                  로그아웃
-                </Button>
-                <Button variant="ghost" onClick={() => setModal('delete-account')}>
-                  계정 삭제
-                </Button>
-              </>
-            ) : (
-              <Button onClick={() => setModal('login')}>로그인</Button>
-            )}
-          </Actions>
-        </Panel>
-      )}
+      {tab === 'subscription' && <AccountPanel />}
       {tab === 'documents' && (
         <Panel title="문서 저장 폴더">
           <p>앱에서 만든 정본 PDF·동의서·엑셀을 모아 두는 위치입니다.</p>
@@ -1504,35 +1286,12 @@ export function SettingsPage(): React.JSX.Element {
                     : [...d.schools, school]
                 }))
                 setSchool(null)
-                notify('학교 정보를 저장했습니다.')
+                notify('학교 정보를 저장했습니다.', 'success')
               }}
             >
               저장
             </Button>
           </Actions>
-        </Modal>
-      )}
-      {locked && (
-        <Modal title="화면 잠금 미리보기" onClose={() => setLocked(false)}>
-          <p>실제 보안 잠금이 아닌 화면 미리보기입니다.</p>
-          <Field label="PIN">
-            <TextInput
-              type="password"
-              maxLength={4}
-              value={verify}
-              onChange={(e) => setVerify(e.target.value)}
-            />
-          </Field>
-          <Button
-            onClick={() => {
-              if (!data.settings.pin || verify === data.settings.pin) {
-                setLocked(false)
-                notify('잠금 화면 미리보기를 종료했습니다.')
-              } else notify('PIN이 일치하지 않습니다.')
-            }}
-          >
-            잠금 해제
-          </Button>
         </Modal>
       )}
       {modal && (
@@ -1541,7 +1300,6 @@ export function SettingsPage(): React.JSX.Element {
             (
               {
                 'archive-school': '학교를 보관할까요?',
-                recovery: '예시 복구 코드 생성',
                 backup: '화면 상태 백업',
                 restore: '백업한 화면 상태로 되돌릴까요?',
                 reset: '현재 학교 데이터를 초기화할까요?',
@@ -1558,70 +1316,7 @@ export function SettingsPage(): React.JSX.Element {
             if (modal === 'archive-school') setSchool(null)
           }}
         >
-          {modal === 'login' ? (
-            <>
-              <Field label="이메일">
-                <TextInput
-                  type="email"
-                  value={account.email}
-                  onChange={(e) => setAccount({ ...account, email: e.target.value })}
-                />
-              </Field>
-              {account.requested && (
-                <>
-                  <p>실제 메일은 보내지 않았습니다. 체험 코드: 123456</p>
-                  <Field label="인증번호">
-                    <TextInput
-                      value={account.otp}
-                      onChange={(e) => setAccount({ ...account, otp: e.target.value })}
-                    />
-                  </Field>
-                </>
-              )}
-              <Actions>
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    notify('Google OAuth는 연결하지 않았습니다. 이메일 로그인 체험을 이용하세요.')
-                  }
-                >
-                  Google로 계속
-                </Button>
-                <Button
-                  disabled={!account.email.includes('@')}
-                  onClick={() => {
-                    if (!account.requested) setAccount({ ...account, requested: true })
-                    else if (account.otp === '123456') {
-                      setAccount({ ...account, logged: true })
-                      setModal('')
-                      notify('로그인 화면 체험을 완료했습니다.')
-                    } else notify('체험 코드 123456을 입력하세요.')
-                  }}
-                >
-                  {account.requested ? '인증 확인' : '인증번호 요청 체험'}
-                </Button>
-              </Actions>
-            </>
-          ) : modal === 'redeem' ? (
-            <>
-              <Field label="구독 코드">
-                <TextInput
-                  value={account.code}
-                  onChange={(e) => setAccount({ ...account, code: e.target.value })}
-                />
-              </Field>
-              <p>실제 이용권은 등록되지 않습니다.</p>
-              <Button
-                disabled={!account.code.trim()}
-                onClick={() => {
-                  setModal('')
-                  notify('코드 입력을 확인했습니다. 실제 구독 상태는 변경하지 않습니다.')
-                }}
-              >
-                코드 입력 확인
-              </Button>
-            </>
-          ) : modal === 'folder-preview' ? (
+          {modal === 'folder-preview' ? (
             <>
               <p>{prefs.documentFolder}</p>
               <ul>
@@ -1677,7 +1372,6 @@ export function SettingsPage(): React.JSX.Element {
                       }))
                       setSchool(null)
                     }
-                    if (modal === 'recovery') setRecovery(`POC-${uid().slice(0, 8).toUpperCase()}`)
                     if (modal === 'backup') setSnapshot(structuredClone(data))
                     if (modal === 'restore' && snapshot) {
                       setPrevious(structuredClone(data))
@@ -1693,11 +1387,9 @@ export function SettingsPage(): React.JSX.Element {
                         archives: d.archives.filter((s) => s.schoolId !== d.activeSchoolId)
                       }))
                     }
-                    if (modal === 'delete-account')
-                      setAccount({ email: '', logged: false, code: '', otp: '', requested: false })
                     if (modal === 'folder') save()
                     setModal('')
-                    notify('화면에 반영했습니다.')
+                    notify('화면에 반영했습니다.', 'success')
                   }}
                 >
                   확인
@@ -1753,7 +1445,10 @@ export function NoticesPage(): React.JSX.Element {
         <Button
           variant="secondary"
           onClick={() =>
-            notify('로컬 예시 공지를 다시 확인했습니다. 외부 서버는 연결하지 않았습니다.')
+            notify(
+              '로컬 예시 공지를 다시 확인했습니다. 외부 서버는 연결하지 않았습니다.',
+              'success'
+            )
           }
         >
           새로고침

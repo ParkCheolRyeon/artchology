@@ -1,3 +1,4 @@
+import { SchoolLife } from './SchoolLife'
 import { ArtStudio } from './ArtStudio'
 import { Palette } from 'lucide-react'
 import { Surface } from './ui'
@@ -49,6 +50,7 @@ export function HomePage(): React.JSX.Element {
       .join(', ')
   const openSession = (id: string, caseId: string): void =>
     navigate(caseId ? `/cases/${caseId}/sessions/${id}` : '/#home-calendar')
+  if (section === 'home-school') return <SchoolLife />
   if (section === 'home-art') return <ArtStudio key={data.activeSchoolId} />
   if (section === 'home-calendar')
     return (

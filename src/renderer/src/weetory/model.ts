@@ -5,6 +5,7 @@ export interface School {
   type: string
   weeClass: string
   phone: string
+  timetable?: Preferences['timetable']
   archived: boolean
 }
 export interface Enrollment {
@@ -32,11 +33,37 @@ export interface Concept {
   fields: Record<string, string>
   date: string
 }
+export interface ConsentTemplateField {
+  id: string
+  label: string
+  type: 'text' | 'textarea' | 'select' | 'date' | 'consent' | 'signature'
+  options?: string[]
+  multiple?: boolean
+  description?: string
+  required: boolean
+}
+export interface ConsentTemplate {
+  id: string
+  name: string
+  title: string
+  body: string
+  isDefault: boolean
+  fields: ConsentTemplateField[]
+}
 export interface Consent {
+  fields?: ConsentTemplateField[]
+  answers?: Record<string, string>
+  channel?: 'link' | 'sms'
+  templateId?: string
+  recipient?: string
+  guardian?: string
+  counselingAgreed?: boolean
+  privacyAgreed?: boolean
+  history?: { at: string; text: string }[]
   id: string
   title: string
   studentId: string
-  status: '작성 중' | '발송 대기' | '동의' | '미동의'
+  status: '작성 중' | '발송 대기' | '응답 대기' | '동의' | '미동의' | '만료'
   date: string
   body: string
 }
@@ -87,13 +114,14 @@ export interface Meeting {
   location: string
 }
 export interface Preferences {
+  affiliation: string
+  defaultClassification: string
   counselor: string
   email: string
   phone: string
   schoolYear: number
   theme: string
   autoLock: number
-  pin: string
   autoBackup: boolean
   backupTime: string
   backupRetention: number
@@ -118,6 +146,8 @@ export interface NumberChange {
   after: Record<string, string>
 }
 export interface WorkspaceData {
+  consentTemplates: ConsentTemplate[]
+  account: { email: string; logged: boolean; subscribed: boolean }
   drawings: (Drawing & { schoolId: string })[]
   students: Pupil[]
   cases: CaseRecord[]
@@ -177,7 +207,8 @@ export const HOME_TABS = [
   '장기 미접촉',
   '최근 기록',
   '기록물 보관',
-  '마음 그리기'
+  '마음 그리기',
+  '학교 생활'
 ] as const
 export function createDemo(): WorkspaceData {
   const today = day(),
@@ -277,21 +308,46 @@ export function createDemo(): WorkspaceData {
       {
         id: schoolId,
         name: '아트봄 초등학교',
+        timetable: [
+          { name: '1교시', start: '09:00', end: '09:40' },
+          { name: '2교시', start: '09:50', end: '10:30' },
+          { name: '3교시', start: '10:40', end: '11:20' },
+          { name: '4교시', start: '11:30', end: '12:10' },
+          { name: '점심', start: '12:10', end: '13:00' },
+          { name: '5교시', start: '13:00', end: '13:40' },
+          { name: '6교시', start: '13:50', end: '14:30' }
+        ],
         type: '초등학교',
         weeClass: 'Wee클래스',
         phone: '',
         archived: false
       }
     ],
+    consentTemplates: [
+      {
+        id: 'consent-default',
+        name: '상담 동의서',
+        title: '학생 상담 및 개인정보 수집·이용 동의서',
+        body: '학생의 건강한 학교생활과 정서적 성장을 위한 상담입니다. 학생 기본정보, 상담 기록 및 보호자 연락처를 수집하며 학교 개인정보 처리 기준에 따라 보관합니다. 동의를 거부할 수 있습니다.',
+        isDefault: true,
+        fields: [
+          { id: 'guardian', label: '보호자 성명', type: 'text', required: true },
+          { id: 'counseling', label: '상담 참여', type: 'consent', required: true },
+          { id: 'privacy', label: '개인정보 수집·이용', type: 'consent', required: true }
+        ]
+      }
+    ],
+    account: { email: '', logged: false, subscribed: false },
     activeSchoolId: schoolId,
     settings: {
+      affiliation: '전문상담교사',
+      defaultClassification: '개인상담',
       counselor: '김선생',
       email: '',
       phone: '',
       schoolYear: year,
       theme: '라이트',
       autoLock: 15,
-      pin: '',
       autoBackup: false,
       backupTime: '17:00',
       backupRetention: 30,
