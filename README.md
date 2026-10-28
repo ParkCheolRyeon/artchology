@@ -63,3 +63,16 @@ AI 생성, 음성 인식 등 AI 기능은 제외했습니다. 상단 탭/앞뒤 
 ## 폰트
 
 Pretendard Variable을 앱에 포함합니다. 라이선스는 `src/renderer/src/assets/fonts/LICENSE.txt` (SIL OFL 1.1)입니다.
+
+## 공통 UI 디자인 시스템
+
+현재 UI는 **shadcn/ui + Radix UI + Tailwind CSS v4**를 사용합니다. 공식 `new-york-v4` 레지스트리에서 가져온 컴포넌트를 `src/renderer/src/components/ui/`에 보관하고, 앱에 맞는 조합은 `form-controls.tsx`와 `weetory/ui.tsx`에서 관리합니다.
+
+- `assets/design-system.css`: 색상·글꼴·모서리 토큰, Tailwind 설정, 기존 레이아웃 CSS의 cascade layer 경계
+- `form-controls.tsx`: Radix 드롭다운/체크박스, Popover + Calendar의 한국어 날짜 선택기(날짜 직접 입력·연/월 이동·시간 입력)
+- `components/ui.tsx`: 기존 화면 API를 유지하는 버튼·배지·Radix 모달 어댑터
+- `components.json`: 향후 shadcn 컴포넌트 추가를 위한 경로 설정
+
+원본 컴포넌트의 입력 높이·색상·한국어 닫기 표시를 앱에 맞게 조정했습니다. 날짜/선택 팝업은 OS 기본 UI를 사용하지 않습니다. FullCalendar는 일정 편집용으로 유지합니다. 파일 선택과 직접 숫자·시간 입력 등 필요한 기본 입력 기능은 유지합니다.
+
+검증에는 선택기 키보드 조작과 포커스 복귀, 모달 내부 팝업, 네 가지 주요 화면 스크린샷 및 기존 일정 드래그/사례 연결 흐름이 포함됩니다.

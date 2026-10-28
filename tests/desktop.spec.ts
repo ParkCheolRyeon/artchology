@@ -68,9 +68,16 @@ test('원본 메뉴와 모든 하위 화면 탐색', async () => {
     }
     await menu(page, '홈')
     await sub(page, '캘린더')
-    await page.screenshot({ path: test.info().outputPath('calendar.png'), fullPage: true })
+    await page.screenshot({
+      animations: 'disabled',
+      path: test.info().outputPath('calendar.png'),
+      fullPage: true
+    })
     await page.setViewportSize({ width: 980, height: 820 })
-    await page.screenshot({ path: test.info().outputPath('calendar-980.png') })
+    await page.screenshot({
+      animations: 'disabled',
+      path: test.info().outputPath('calendar-980.png')
+    })
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
     ).toBe(true)
@@ -199,7 +206,8 @@ test('학생 등록에서 사례·상담 기록 작성 및 캘린더 연결', as
     await sub(page, '학생 등록')
     const dialog = page.getByRole('dialog')
     await dialog.getByLabel('이름 *', { exact: true }).fill('연결검증학생')
-    await dialog.getByLabel('학년', { exact: true }).selectOption('3')
+    await dialog.getByRole('combobox', { name: '학년', exact: true }).click()
+    await page.getByRole('option', { name: '3학년', exact: true }).click()
     await dialog.getByLabel('반 이름').fill('1')
     await dialog.getByLabel('번호', { exact: true }).fill('25')
     await dialog.getByRole('button', { name: '저장', exact: true }).click()
@@ -212,8 +220,8 @@ test('학생 등록에서 사례·상담 기록 작성 및 캘린더 연결', as
     await expect(page.getByRole('heading', { name: '연결검증학생', exact: true })).toBeVisible()
     for (const name of ['사례 개념화', '상담 기록', '동의서', '개요']) {
       await page
-        .getByRole('navigation', { name: '하위 메뉴', exact: true })
-        .getByRole('button', { name, exact: true })
+        .getByRole('tablist', { name: '하위 메뉴', exact: true })
+        .getByRole('tab', { name, exact: true })
         .click()
     }
     await page.getByRole('button', { name: '상담 기록 추가', exact: true }).click()
@@ -226,12 +234,106 @@ test('학생 등록에서 사례·상담 기록 작성 및 캘린더 연결', as
     await expect(page.getByLabel('상담 기록 · 내부 기록', { exact: true })).toHaveValue(
       '내부 관찰 내용'
     )
-    await page.screenshot({ path: test.info().outputPath('session-detail.png') })
+    await page.screenshot({
+      animations: 'disabled',
+      path: test.info().outputPath('session-detail.png')
+    })
     await menu(page, '홈')
     await sub(page, '캘린더')
     await expect(
       page.locator('.wt-fc-event:not(.wt-fc-mirror)').filter({ hasText: '연결 검증 상담' }).first()
     ).toBeVisible()
+  } finally {
+    await app.close()
+  }
+})
+
+test('공통 UI: 드롭다운·날짜 선택·키보드·모달 안 팝업과 화면 마감', async () => {
+  const app = await launch()
+  try {
+    const page = await app.firstWindow()
+    const errors: string[] = []
+    page.on('pageerror', (e) => errors.push(e.message))
+    await menu(page, '학생 관리')
+    const grade = page.getByRole('combobox', { name: '학년', exact: true })
+    await grade.click()
+    await expect(page.getByRole('listbox')).toBeVisible()
+    await page.screenshot({
+      animations: 'disabled',
+      path: test.info().outputPath('students-select.png')
+    })
+    await page.getByRole('option', { name: '3학년', exact: true }).click()
+    await expect(grade).toContainText('3학년')
+    await expect(grade).toBeFocused()
+    await grade.press('Enter')
+    await page.keyboard.press('Escape')
+    await expect(grade).toBeFocused()
+    await menu(page, '통계')
+    await page
+      .getByLabel('시작일', { exact: true })
+      .locator('..')
+      .getByRole('button', { name: '날짜 달력 열기' })
+      .click()
+    await expect(page.getByRole('dialog', { name: '날짜 선택' })).toBeVisible()
+    await page.screenshot({
+      animations: 'disabled',
+      path: test.info().outputPath('statistics-datepicker.png')
+    })
+    await page.getByRole('combobox', { name: '달력 월' }).click()
+    await page.getByRole('option', { name: '3월', exact: true }).click()
+    await expect(page.getByRole('combobox', { name: '달력 월' })).toContainText('3월')
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog', { name: '날짜 선택' })).toHaveCount(0)
+    await menu(page, '사례 관리')
+    await page.screenshot({
+      animations: 'disabled',
+      path: test.info().outputPath('cases-polished.png')
+    })
+    await expect(page.locator('main input[type=date]:visible, main select:visible')).toHaveCount(0)
+    await menu(page, '공지사항')
+    await page.screenshot({
+      animations: 'disabled',
+      path: test.info().outputPath('notices-polished.png')
+    })
+    const search = await page.getByLabel('공지 검색').boundingBox(),
+      card = await page.locator('main [data-slot=card]').first().boundingBox()
+    expect(card!.y - (search!.y + search!.height)).toBeGreaterThanOrEqual(20)
+    await menu(page, '홈')
+    await sub(page, '캘린더')
+    await page.getByRole('button', { name: '새 일정', exact: true }).click()
+    const modal = page.getByRole('dialog', { name: '새 일정', exact: true })
+    await modal
+      .getByLabel('시작 일시')
+      .locator('..')
+      .getByRole('button', { name: '날짜 달력 열기' })
+      .click()
+    await expect(page.getByRole('dialog', { name: '날짜 선택' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(modal).toBeVisible()
+    const originalDate = await modal.getByLabel('시작 일시').inputValue()
+    await modal.getByLabel('시작 일시').fill('2026-02-31T09:00')
+    expect(
+      await modal
+        .getByLabel('시작 일시')
+        .evaluate((input: HTMLInputElement) => input.checkValidity())
+    ).toBe(false)
+    await modal.getByLabel('시작 일시').fill(originalDate)
+    expect(
+      await modal
+        .getByLabel('시작 일시')
+        .evaluate((input: HTMLInputElement) => input.checkValidity())
+    ).toBe(true)
+    await modal.getByRole('combobox', { name: '일정 분류' }).click()
+    await page.getByRole('option', { name: '교육', exact: true }).click()
+    await expect(modal.getByRole('combobox', { name: '일정 분류' })).toContainText('교육')
+    await modal.getByRole('button', { name: '취소', exact: true }).click()
+    await page.setViewportSize({ width: 980, height: 820 })
+    await menu(page, '사례 관리')
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+    ).toBe(true)
+    await page.screenshot({ animations: 'disabled', path: test.info().outputPath('cases-980.png') })
+    expect(errors).toEqual([])
   } finally {
     await app.close()
   }
