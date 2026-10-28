@@ -1,3 +1,5 @@
+import { Surface } from './ui'
+
 import {
   CalendarPlus,
   Plus,
@@ -74,7 +76,7 @@ export function HomePage(): React.JSX.Element {
       </div>
       {(section === 'home-today' || section === 'home-cases') && (
         <div className="wt-home-overview">
-          <section className="surface">
+          <Surface className="surface">
             <SectionHeading
               title="오늘의 상담"
               count={todayRows.length}
@@ -106,8 +108,8 @@ export function HomePage(): React.JSX.Element {
                 action={<Button onClick={() => navigate('/#home-calendar')}>일정 추가</Button>}
               />
             )}
-          </section>
-          <section className="surface wt-case-overview">
+          </Surface>
+          <Surface className="surface wt-case-overview">
             <SectionHeading title="사례 현황" onClick={() => navigate('/cases')} />
             <FolderOpen size={26} />
             <p>
@@ -126,12 +128,12 @@ export function HomePage(): React.JSX.Element {
             <RowLink onClick={() => navigate('/cases?status=종결')}>
               종결 사례 {cases.length - active.length}건
             </RowLink>
-          </section>
+          </Surface>
         </div>
       )}
       {section === 'home-today' && <CalendarWorkspace compact />}
       {(section === 'home-today' || section === 'home-stale') && (
-        <section className="surface wt-section">
+        <Surface className="surface wt-section">
           <SectionHeading title="장기 미접촉" count={stale.length} />
           <p className="wt-note">14일 이상 완료된 상담 기록이 없는 진행 중 사례입니다.</p>
           {stale.length ? (
@@ -152,10 +154,10 @@ export function HomePage(): React.JSX.Element {
           ) : (
             <Empty title="모든 사례를 꾸준히 만나고 있어요" />
           )}
-        </section>
+        </Surface>
       )}
       {(section === 'home-today' || section === 'home-recent') && (
-        <section className="surface wt-section">
+        <Surface className="surface wt-section">
           <SectionHeading title="최근 기록" />
           {latest.map((row) => (
             <RowLink key={row.id} onClick={() => openSession(row.id, row.caseId)}>
@@ -165,16 +167,16 @@ export function HomePage(): React.JSX.Element {
               <span>{row.title}</span>
             </RowLink>
           ))}
-        </section>
+        </Surface>
       )}
       {section === 'home-archival' && (
-        <section className="surface wt-section">
+        <Surface className="surface wt-section">
           <SectionHeading title="기록물 보관" />
           <ArchiveIcon size={28} />
           <h2>한 해의 상담 기록을 차곡차곡</h2>
           <p className="wt-note">학년도별 상담일지를 편철하고 정본과 이관 상태를 관리합니다.</p>
           <Button onClick={() => navigate('/reports?tab=archival')}>기록물 보관·이관 열기</Button>
-        </section>
+        </Surface>
       )}
     </>
   )

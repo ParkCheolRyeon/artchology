@@ -1,3 +1,15 @@
+import { Surface } from './ui'
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell
+} from '../components/ui/table'
+import { Input as TextInput } from '../components/ui/input'
+import { Textarea } from '../components/ui/textarea'
+import { FormSelect, FormCheckbox } from '../components/form-controls'
 import { useState } from 'react'
 import { Plus, Upload, Pencil, Trash2, ChevronRight, Users } from 'lucide-react'
 import { useWorkspace } from './context'
@@ -16,7 +28,7 @@ function EnrollmentFields({
   return (
     <div className="form-grid">
       <Field label="학년도">
-        <input
+        <TextInput
           required
           type="number"
           min="2000"
@@ -26,9 +38,9 @@ function EnrollmentFields({
         />
       </Field>
       <Field label="학년">
-        <select
+        <FormSelect
           value={value.grade}
-          onChange={(e) => onChange({ ...value, grade: Number(e.target.value) })}
+          onValueChange={(e) => onChange({ ...value, grade: Number(e) })}
         >
           <option value={0}>미입력</option>
           {[1, 2, 3, 4, 5, 6].map((n) => (
@@ -36,17 +48,17 @@ function EnrollmentFields({
               {n}학년
             </option>
           ))}
-        </select>
+        </FormSelect>
       </Field>
       <Field label="반 이름">
-        <input
+        <TextInput
           value={value.classroom}
           placeholder="예: 3, 가, 사랑"
           onChange={(e) => onChange({ ...value, classroom: e.target.value })}
         />
       </Field>
       <Field label="번호">
-        <input
+        <TextInput
           type="number"
           min="0"
           value={value.number || ''}
@@ -54,14 +66,14 @@ function EnrollmentFields({
         />
       </Field>
       <Field label="재학 상태">
-        <select
+        <FormSelect
           value={value.status}
-          onChange={(e) => onChange({ ...value, status: e.target.value as Enrollment['status'] })}
+          onValueChange={(e) => onChange({ ...value, status: e as Enrollment['status'] })}
         >
           {['재학', '졸업', '전출'].map((s) => (
             <option key={s}>{s}</option>
           ))}
-        </select>
+        </FormSelect>
       </Field>
     </div>
   )
@@ -104,7 +116,7 @@ function StudentEditor({
     key: 'name' | 'contact' | 'guardianName' | 'guardianRelation' | 'guardianContact'
   ): React.JSX.Element => (
     <Field label={label}>
-      <input
+      <TextInput
         required={key === 'name'}
         value={draft[key]}
         onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
@@ -142,14 +154,14 @@ function StudentEditor({
         <div className="form-grid">
           {textField('이름 *', 'name')}
           <Field label="성별">
-            <select
+            <FormSelect
               value={draft.gender}
-              onChange={(e) => setDraft({ ...draft, gender: e.target.value as Pupil['gender'] })}
+              onValueChange={(e) => setDraft({ ...draft, gender: e as Pupil['gender'] })}
             >
               {['미입력', '남', '여'].map((s) => (
                 <option key={s}>{s}</option>
               ))}
-            </select>
+            </FormSelect>
           </Field>
           {textField('학생 연락처', 'contact')}
           {textField('보호자 이름', 'guardianName')}
@@ -248,7 +260,7 @@ function RosterUpload({ onClose }: { onClose: () => void }): React.JSX.Element {
             단계에서 구현합니다.
           </p>
           <Field label="대상 학년도">
-            <input
+            <TextInput
               type="number"
               min="2000"
               max="2100"
@@ -257,7 +269,7 @@ function RosterUpload({ onClose }: { onClose: () => void }): React.JSX.Element {
             />
           </Field>
           <Field label="명렬표 입력 (성명,학년,반,번호,성별)">
-            <textarea
+            <Textarea
               rows={8}
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -265,7 +277,7 @@ function RosterUpload({ onClose }: { onClose: () => void }): React.JSX.Element {
             />
           </Field>
           <Field label="CSV 파일 선택">
-            <input
+            <TextInput
               type="file"
               accept=".csv,.tsv,.txt"
               onChange={async (e) => {
@@ -316,18 +328,18 @@ function RosterUpload({ onClose }: { onClose: () => void }): React.JSX.Element {
             주세요.
           </p>
           {rows.map((r, i) => (
-            <section className="surface" style={{ padding: 16, marginBottom: 12 }} key={i}>
+            <Surface className="surface" style={{ padding: 16, marginBottom: 12 }} key={i}>
               <div className="form-grid">
                 <Field label="이름">
-                  <input
+                  <TextInput
                     value={r.name}
                     onChange={(e) => update(i, { name: e.target.value, reviewed: false })}
                   />
                 </Field>
                 <Field label="기존 학생 연결">
-                  <select
+                  <FormSelect
                     value={r.link}
-                    onChange={(e) => update(i, { link: e.target.value, reviewed: false })}
+                    onValueChange={(e) => update(i, { link: e, reviewed: false })}
                   >
                     <option value="">새 학생 등록</option>
                     {pupils.map((s) => (
@@ -335,10 +347,10 @@ function RosterUpload({ onClose }: { onClose: () => void }): React.JSX.Element {
                         {s.name} · {enrollmentLabel(s.enrollments.at(-1))}
                       </option>
                     ))}
-                  </select>
+                  </FormSelect>
                 </Field>
                 <Field label="학년">
-                  <input
+                  <TextInput
                     type="number"
                     min="1"
                     max="6"
@@ -347,13 +359,13 @@ function RosterUpload({ onClose }: { onClose: () => void }): React.JSX.Element {
                   />
                 </Field>
                 <Field label="반">
-                  <input
+                  <TextInput
                     value={r.classroom}
                     onChange={(e) => update(i, { classroom: e.target.value, reviewed: false })}
                   />
                 </Field>
                 <Field label="번호">
-                  <input
+                  <TextInput
                     type="number"
                     min="1"
                     value={r.number}
@@ -361,14 +373,14 @@ function RosterUpload({ onClose }: { onClose: () => void }): React.JSX.Element {
                   />
                 </Field>
                 <Field label="성별">
-                  <select
+                  <FormSelect
                     value={r.gender}
-                    onChange={(e) => update(i, { gender: e.target.value as Pupil['gender'] })}
+                    onValueChange={(e) => update(i, { gender: e as Pupil['gender'] })}
                   >
                     {['미입력', '남', '여'].map((g) => (
                       <option key={g}>{g}</option>
                     ))}
-                  </select>
+                  </FormSelect>
                 </Field>
               </div>
               {r.link && (
@@ -378,14 +390,13 @@ function RosterUpload({ onClose }: { onClose: () => void }): React.JSX.Element {
                 </p>
               )}
               <label>
-                <input
-                  type="checkbox"
+                <FormCheckbox
                   checked={r.reviewed}
-                  onChange={(e) => update(i, { reviewed: e.target.checked })}
+                  onCheckedChange={(e) => update(i, { reviewed: e })}
                 />{' '}
                 입력값·학년·연결 학생을 확인했습니다
               </label>
-            </section>
+            </Surface>
           ))}
           <p className="wt-note">
             같은 기존 학생을 여러 행에 연결할 수 없습니다. 모든 행의 이름·학적·학년 확인이
@@ -407,15 +418,10 @@ function RosterUpload({ onClose }: { onClose: () => void }): React.JSX.Element {
           {absent.length ? (
             absent.map((s) => (
               <label className="wt-row-link" key={s.id}>
-                <input
-                  type="checkbox"
+                <FormCheckbox
                   checked={graduates.includes(s.id)}
-                  onChange={(e) =>
-                    setGraduates(
-                      e.target.checked
-                        ? [...graduates, s.id]
-                        : graduates.filter((id) => id !== s.id)
-                    )
+                  onCheckedChange={(e) =>
+                    setGraduates(e ? [...graduates, s.id] : graduates.filter((id) => id !== s.id))
                   }
                 />
                 {s.name} · {enrollmentLabel(s.enrollments.at(-1))}
@@ -616,7 +622,7 @@ export function StudentsPage(): React.JSX.Element {
       ) : student ? (
         <>
           <Back onClick={() => navigate('/students')}>학생 관리</Back>
-          <section className="surface" style={{ padding: 24, marginTop: 16 }}>
+          <Surface className="surface" style={{ padding: 24, marginTop: 16 }}>
             <h2>기본 정보</h2>
             <div className="form-grid">
               {[
@@ -639,8 +645,8 @@ export function StudentsPage(): React.JSX.Element {
                 학생 삭제
               </Button>
             </div>
-          </section>
-          <section className="surface" style={{ padding: 24, marginTop: 20 }}>
+          </Surface>
+          <Surface className="surface" style={{ padding: 24, marginTop: 20 }}>
             <div className="section-heading">
               <h2>학년도별 상담 기록</h2>
               <Button
@@ -730,83 +736,74 @@ export function StudentsPage(): React.JSX.Element {
             {!student.enrollments.length && !studentCases.length && (
               <Empty title="등록된 학적 및 상담 기록이 없습니다" />
             )}
-          </section>
+          </Surface>
         </>
       ) : (
         <>
-          <section className="surface" style={{ padding: 20 }}>
+          <Surface className="surface" style={{ padding: 20 }}>
             <div className="form-grid">
               <Field label="이름으로 검색">
-                <input
+                <TextInput
                   placeholder="이름으로 검색…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </Field>
               <Field label="학년도">
-                <input
+                <TextInput
                   type="number"
                   value={year}
                   onChange={(e) => setYear(Number(e.target.value))}
                 />
               </Field>
               <Field label="학년">
-                <select value={grade} onChange={(e) => setGrade(e.target.value)}>
+                <FormSelect value={grade} onValueChange={(e) => setGrade(e)}>
                   <option value="">전체 학년</option>
                   {[1, 2, 3, 4, 5, 6].map((n) => (
                     <option key={n} value={n}>
                       {n}학년
                     </option>
                   ))}
-                </select>
+                </FormSelect>
               </Field>
               <Field label="반">
-                <input
+                <TextInput
                   placeholder="전체 반"
                   value={classroom}
                   onChange={(e) => setClassroom(e.target.value)}
                 />
               </Field>
               <Field label="성별">
-                <select value={gender} onChange={(e) => setGender(e.target.value)}>
+                <FormSelect value={gender} onValueChange={(e) => setGender(e)}>
                   {['', '남', '여', '미입력'].map((g) => (
                     <option key={g} value={g}>
                       {g || '전체'}
                     </option>
                   ))}
-                </select>
+                </FormSelect>
               </Field>
               <Field label="정렬">
-                <select value={sort} onChange={(e) => setSort(e.target.value)}>
+                <FormSelect value={sort} onValueChange={(e) => setSort(e)}>
                   {['학적순', '이름순', '이름 역순'].map((s) => (
                     <option key={s}>{s}</option>
                   ))}
-                </select>
+                </FormSelect>
               </Field>
             </div>
             <div className="modal-actions">
               <label>
-                <input
-                  type="checkbox"
-                  checked={enrolled}
-                  onChange={(e) => setEnrolled(e.target.checked)}
-                />{' '}
-                재학생만
+                <FormCheckbox checked={enrolled} onCheckedChange={(e) => setEnrolled(e)} /> 재학생만
               </label>
               <label>
-                <input
-                  type="checkbox"
-                  checked={withCase}
-                  onChange={(e) => setWithCase(e.target.checked)}
-                />{' '}
-                사례 있는 학생만
+                <FormCheckbox checked={withCase} onCheckedChange={(e) => setWithCase(e)} /> 사례
+                있는 학생만
               </label>
               <Button variant="ghost" onClick={clear}>
                 필터 해제
               </Button>
             </div>
-          </section>
-          <section className="surface" style={{ padding: 20, marginTop: 20 }}>
+          </Surface>
+          <Surface className="surface" style={{ padding: 20, marginTop: 20 }}>
             <div className="section-heading">
               <h2>
                 <Users size={18} /> 학생 {list.length}명
@@ -828,75 +825,71 @@ export function StudentsPage(): React.JSX.Element {
             </div>
             {list.length ? (
               <div style={{ overflowX: 'auto' }}>
-                <table className="data-table" style={{ width: '100%' }}>
-                  <thead>
-                    <tr>
-                      <th>
-                        <input
-                          type="checkbox"
+                <Table className="data-table" style={{ width: '100%' }}>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
+                        <FormCheckbox
                           aria-label="현재 학생 모두 선택"
                           checked={list.every((s) => selected.includes(s.id))}
-                          onChange={(e) =>
-                            setSelected(e.target.checked ? list.map((s) => s.id) : [])
-                          }
+                          onCheckedChange={(e) => setSelected(e ? list.map((s) => s.id) : [])}
                         />
-                      </th>
-                      <th>학생 이름</th>
-                      <th>학적</th>
-                      <th>성별</th>
-                      <th>재학 상태</th>
-                      <th>사례</th>
-                      <th>관리</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                      </TableHead>
+                      <TableHead>학생 이름</TableHead>
+                      <TableHead>학적</TableHead>
+                      <TableHead>성별</TableHead>
+                      <TableHead>재학 상태</TableHead>
+                      <TableHead>사례</TableHead>
+                      <TableHead>관리</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {list.map((s) => {
                       const e = s.enrollments.find((e) => e.year === year)
                       return (
-                        <tr key={s.id}>
-                          <td>
-                            <input
-                              type="checkbox"
+                        <TableRow key={s.id}>
+                          <TableCell>
+                            <FormCheckbox
                               aria-label={`${s.name} 선택`}
                               checked={selected.includes(s.id)}
-                              onChange={(e) =>
+                              onCheckedChange={(e) =>
                                 setSelected(
-                                  e.target.checked
-                                    ? [...selected, s.id]
-                                    : selected.filter((id) => id !== s.id)
+                                  e ? [...selected, s.id] : selected.filter((id) => id !== s.id)
                                 )
                               }
                             />
-                          </td>
-                          <td>
+                          </TableCell>
+                          <TableCell>
                             <button
                               className="text-link"
                               onClick={() => navigate(`/students/${s.id}`)}
                             >
                               {s.name}
                             </button>
-                          </td>
-                          <td>{enrollmentLabel(e)}</td>
-                          <td>{s.gender}</td>
-                          <td>
+                          </TableCell>
+                          <TableCell>{enrollmentLabel(e)}</TableCell>
+                          <TableCell>{s.gender}</TableCell>
+                          <TableCell>
                             <Badge tone={e?.status === '재학' ? 'blue' : 'gray'}>
                               {e?.status || '미등록'}
                             </Badge>
-                          </td>
-                          <td>{data.cases.filter((c) => c.studentIds.includes(s.id)).length}건</td>
-                          <td>
+                          </TableCell>
+                          <TableCell>
+                            {data.cases.filter((c) => c.studentIds.includes(s.id)).length}건
+                          </TableCell>
+                          <TableCell>
                             <Button variant="ghost" onClick={() => setEditor(s)}>
                               수정
                             </Button>
                             <Button variant="ghost" onClick={() => setRemove([s.id])}>
                               삭제
                             </Button>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       )
                     })}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             ) : (
               <Empty
@@ -908,7 +901,7 @@ export function StudentsPage(): React.JSX.Element {
                 }
               />
             )}
-          </section>
+          </Surface>
         </>
       )}
       {(editor !== undefined || view === 'new') && (
@@ -1048,29 +1041,29 @@ export function StudentsPage(): React.JSX.Element {
           }}
         >
           {requestPreview ? (
-            <section className="surface wt-preview">
+            <Surface className="surface wt-preview">
               <h3>학생 기본 정보 확인 요청</h3>
               <p>{requestStudent.name} 학생의 보호자님, 상담을 위한 기본 정보를 확인해 주세요.</p>
               <Field label="보호자 이름">
-                <input defaultValue={requestStudent.guardianName} />
+                <TextInput defaultValue={requestStudent.guardianName} />
               </Field>
               <Field label="학생과의 관계">
-                <input defaultValue={requestStudent.guardianRelation} />
+                <TextInput defaultValue={requestStudent.guardianRelation} />
               </Field>
               <Field label="보호자 연락처">
-                <input defaultValue={requestStudent.guardianContact} />
+                <TextInput defaultValue={requestStudent.guardianContact} />
               </Field>
               <label>
-                <input type="checkbox" /> 개인정보 수집·이용 안내를 확인했습니다.
+                <FormCheckbox /> 개인정보 수집·이용 안내를 확인했습니다.
               </label>
               <p className="wt-note">보호자 화면 미리보기입니다. 입력값은 전송되지 않습니다.</p>
-            </section>
+            </Surface>
           ) : (
             <>
               <Field label="대상 학생">
-                <select
+                <FormSelect
                   value={requestStudent.id}
-                  onChange={(e) => setRequestId(e.target.value)}
+                  onValueChange={(e) => setRequestId(e)}
                   disabled={!!student}
                 >
                   {pupils.map((p) => (
@@ -1078,16 +1071,19 @@ export function StudentsPage(): React.JSX.Element {
                       {p.name}
                     </option>
                   ))}
-                </select>
+                </FormSelect>
               </Field>
               <Field label="보호자 연락처">
-                <input defaultValue={requestStudent.guardianContact} placeholder="연락처 입력" />
+                <TextInput
+                  defaultValue={requestStudent.guardianContact}
+                  placeholder="연락처 입력"
+                />
               </Field>
               <Field label="전달 방법">
-                <select>
+                <FormSelect>
                   <option>링크 직접 전달</option>
                   <option>문자 메시지</option>
-                </select>
+                </FormSelect>
               </Field>
             </>
           )}

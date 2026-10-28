@@ -1,9 +1,11 @@
+import { Button as ShadcnButton } from './ui/button'
+import { Badge as ShadcnBadge } from './ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog'
+import { cn } from '../lib/utils'
 import {
   cloneElement,
   isValidElement,
   useId,
-  useEffect,
-  useRef,
   type ButtonHTMLAttributes,
   type ReactNode
 } from 'react'
@@ -19,9 +21,13 @@ export function Button({
   variant?: 'primary' | 'secondary' | 'ghost'
 }): React.JSX.Element {
   return (
-    <button className={`button button-${variant} ${className}`} {...props}>
+    <ShadcnButton
+      variant={variant === 'primary' ? 'secondary' : variant === 'secondary' ? 'outline' : 'ghost'}
+      className={cn('h-10 rounded-lg px-4 text-[13px] font-medium shadow-none', className)}
+      {...props}
+    >
       {children}
-    </button>
+    </ShadcnButton>
   )
 }
 export function Avatar({
@@ -48,10 +54,18 @@ export function Badge({
   tone?: 'green' | 'amber' | 'gray' | 'blue'
 }): React.JSX.Element {
   return (
-    <span className={`badge badge-${tone}`}>
-      <span />
+    <ShadcnBadge
+      variant="secondary"
+      className={cn('gap-1.5 rounded-md border-0 px-2 py-1 text-[11px] font-medium', {
+        'bg-emerald-50 text-emerald-700': tone === 'green',
+        'bg-amber-50 text-amber-700': tone === 'amber',
+        'bg-slate-100 text-slate-500': tone === 'gray',
+        'bg-blue-50 text-blue-600': tone === 'blue'
+      })}
+    >
+      <span className="size-1 rounded-full bg-current opacity-60" />
       {children}
-    </span>
+    </ShadcnBadge>
   )
 }
 export function Empty({
@@ -175,32 +189,33 @@ export function Modal({
   onClose: () => void
   busy?: boolean
 }): React.JSX.Element {
-  const ref = useRef<HTMLDialogElement>(null)
-  useEffect(() => {
-    const dialog = ref.current
-    dialog?.showModal()
-    return () => dialog?.close()
-  }, [])
+  const descriptionId = useId()
   return (
-    <dialog
-      ref={ref}
-      className="modal"
-      aria-label={title}
-      onCancel={(event) => {
-        event.preventDefault()
-        if (!busy) onClose()
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !busy) onClose()
       }}
     >
-      <div className="modal-heading">
-        <div>
-          <h2>{title}</h2>
-          {subtitle && <p>{subtitle}</p>}
-        </div>
-        <button disabled={busy} className="icon-button" aria-label="닫기" onClick={onClose}>
-          <X size={20} />
-        </button>
-      </div>
-      {children}
-    </dialog>
+      <DialogContent
+        className="max-h-[88vh] overflow-y-auto bg-white p-6 sm:max-w-[680px]"
+        showCloseButton={!busy}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => {
+          if (busy) e.preventDefault()
+        }}
+        aria-describedby={subtitle ? descriptionId : undefined}
+      >
+        <DialogHeader className="mb-2 text-left">
+          <DialogTitle className="text-xl font-semibold tracking-tight">{title}</DialogTitle>
+          {subtitle && (
+            <DialogDescription id={descriptionId} className="text-[13px] leading-relaxed">
+              {subtitle}
+            </DialogDescription>
+          )}
+        </DialogHeader>
+        {children}
+      </DialogContent>
+    </Dialog>
   )
 }

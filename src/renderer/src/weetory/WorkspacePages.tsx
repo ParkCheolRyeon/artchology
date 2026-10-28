@@ -1,3 +1,15 @@
+import { Surface } from './ui'
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell
+} from '../components/ui/table'
+import { Input as TextInput } from '../components/ui/input'
+import { Textarea } from '../components/ui/textarea'
+import { FormSelect, FormCheckbox, DateInput } from '../components/form-controls'
 import { useState, type ReactNode } from 'react'
 import { useWorkspace } from './context'
 import {
@@ -28,10 +40,10 @@ const reportKeys = ['excel', 'ledger', 'pdf', 'archival'],
   ]
 function Panel({ title, children }: { title: string; children: ReactNode }): React.JSX.Element {
   return (
-    <section className="surface wt-panel">
+    <Surface className="surface wt-panel">
       <h2>{title}</h2>
       {children}
-    </section>
+    </Surface>
   )
 }
 function Actions({ children }: { children: ReactNode }): React.JSX.Element {
@@ -97,13 +109,13 @@ function useReportFilter(): {
   const filter = (
     <div className="form-grid wt-filter-grid">
       <Field label="시작일">
-        <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+        <DateInput type="date" value={from} onValueChange={(e) => setFrom(e)} />
       </Field>
       <Field label="종료일">
-        <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        <DateInput type="date" value={to} onValueChange={(e) => setTo(e)} />
       </Field>
       <Field label="학생">
-        <select value={student} onChange={(e) => setStudent(e.target.value)}>
+        <FormSelect value={student} onValueChange={(e) => setStudent(e)}>
           <option value="">전체 학생</option>
           {data.students
             .filter((s) => s.schoolId === data.activeSchoolId)
@@ -112,15 +124,15 @@ function useReportFilter(): {
                 {s.name}
               </option>
             ))}
-        </select>
+        </FormSelect>
       </Field>
       <Field label="상담 유형">
-        <select value={type} onChange={(e) => setType(e.target.value)}>
+        <FormSelect value={type} onValueChange={(e) => setType(e)}>
           <option value="">전체 유형</option>
           {CATEGORIES.map((c) => (
             <option key={c}>{c}</option>
           ))}
-        </select>
+        </FormSelect>
       </Field>
       {from > to && <p role="alert">시작일이 종료일보다 늦습니다.</p>}
     </div>
@@ -131,34 +143,34 @@ function SessionTable({ sessions }: { sessions: WorkspaceData['sessions'] }): Re
   const { data, navigate } = useWorkspace()
   return sessions.length ? (
     <div className="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>상담일</th>
-            <th>학생</th>
-            <th>상담제목</th>
-            <th>분류</th>
-            <th>매체</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>상담일</TableHead>
+            <TableHead>학생</TableHead>
+            <TableHead>상담제목</TableHead>
+            <TableHead>분류</TableHead>
+            <TableHead>매체</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {sessions.map((s) => (
-            <tr key={s.id}>
-              <td>{s.start.slice(0, 10)}</td>
-              <td>
+            <TableRow key={s.id}>
+              <TableCell>{s.start.slice(0, 10)}</TableCell>
+              <TableCell>
                 {s.studentIds.map((id) => data.students.find((p) => p.id === id)?.name).join(', ')}
-              </td>
-              <td>
+              </TableCell>
+              <TableCell>
                 <button className="text-link" onClick={() => navigate(`/sessions/${s.id}`)}>
                   {s.neisTitle || s.title}
                 </button>
-              </td>
-              <td>{s.category}</td>
-              <td>{s.medium}</td>
-            </tr>
+              </TableCell>
+              <TableCell>{s.category}</TableCell>
+              <TableCell>{s.medium}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   ) : (
     <Empty title="조건에 맞는 상담 기록이 없습니다." />
@@ -196,7 +208,7 @@ export function StatisticsPage(): React.JSX.Element {
       />
       <Panel title={`${data.settings.schoolYear}학년도 상담 통계`}>{filter}</Panel>
       {tab === 'summary' && (
-        <div className="wt-metric-grid">
+        <div className="my-5 grid grid-cols-5 gap-4 max-[1280px]:grid-cols-3 max-[1000px]:grid-cols-2">
           {[
             ['총 상담 건수', `${sessions.length}건`],
             ['총 상담 시간', `${Math.floor(minutes / 60)}시간 ${minutes % 60}분`],
@@ -210,10 +222,13 @@ export function StatisticsPage(): React.JSX.Element {
               `${cases.length ? Math.round((cases.filter((c) => c.status === '종결').length / cases.length) * 100) : 0}%`
             ]
           ].map(([label, value]) => (
-            <Panel key={label} title={label}>
-              <strong className="wt-metric">{value}</strong>
-              <p>선택한 학년도 · 현재 학교</p>
-            </Panel>
+            <Surface key={label} className="p-5">
+              <p className="text-[12px] font-medium text-muted-foreground">{label}</p>
+              <strong className="my-3 block text-[24px] font-semibold leading-tight tracking-tight tabular-nums">
+                {value}
+              </strong>
+              <p className="text-[11px] text-muted-foreground">선택한 학년도 · 현재 학교</p>
+            </Surface>
           ))}
         </div>
       )}
@@ -339,23 +354,23 @@ function PrintPreview({
     >
       <div className="form-grid">
         <Field label="용지">
-          <select value={size} onChange={(e) => setSize(e.target.value)}>
+          <FormSelect value={size} onValueChange={(e) => setSize(e)}>
             {['A4', 'A3', 'Letter'].map((v) => (
               <option key={v}>{v}</option>
             ))}
-          </select>
+          </FormSelect>
         </Field>
         <Field label="방향">
-          <select value={orientation} onChange={(e) => setOrientation(e.target.value)}>
+          <FormSelect value={orientation} onValueChange={(e) => setOrientation(e)}>
             <option>세로</option>
             <option>가로</option>
-          </select>
+          </FormSelect>
         </Field>
         <Field label="한 장에 출력할 쪽">
-          <select value={pages} onChange={(e) => setPages(e.target.value)}>
+          <FormSelect value={pages} onValueChange={(e) => setPages(e)}>
             <option>1</option>
             <option>2</option>
-          </select>
+          </FormSelect>
         </Field>
       </div>
       <article
@@ -439,12 +454,12 @@ export function ReportsPage(): React.JSX.Element {
             <p>상담제목·상담내용·분류·일자 등 업로드용 항목을 확인합니다.</p>
             {filter}
             <Field label="워크시트">
-              <select value={sheet} onChange={(e) => setSheet(e.target.value)}>
+              <FormSelect value={sheet} onValueChange={(e) => setSheet(e)}>
                 <option>상담실적</option>
                 <option>개인상담</option>
                 <option>집단상담</option>
                 <option>교육·자문</option>
-              </select>
+              </FormSelect>
             </Field>
             <Actions>
               <span>{sessions.length}건 선택</span>
@@ -466,7 +481,7 @@ export function ReportsPage(): React.JSX.Element {
               현재 학교의 선택한 달 기록을 모아 확인합니다. 상담 목표는 현재 사례 정보를 사용합니다.
             </p>
             <Field label="대상 월">
-              <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+              <TextInput type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
             </Field>
             <p>{ledger.length}건</p>
             <Button disabled={!ledger.length} onClick={() => setPreview('상담관리대장 미리보기')}>
@@ -475,20 +490,20 @@ export function ReportsPage(): React.JSX.Element {
           </Panel>
           <Panel title="내부결재 기안 문구">
             <Field label="관련 문서 (선택)">
-              <input
+              <TextInput
                 value={related}
                 onChange={(e) => setRelated(e.target.value)}
                 placeholder="OO초등학교-1234(2026. 3. 5.)"
               />
             </Field>
             <Field label="내부결재 제목">
-              <input value={title} readOnly />
+              <TextInput value={title} readOnly />
             </Field>
             <Button variant="ghost" onClick={() => void copy(title)}>
               제목 복사
             </Button>
             <Field label="내부결재 본문">
-              <textarea rows={5} value={body} readOnly />
+              <Textarea rows={5} value={body} readOnly />
             </Field>
             <Button variant="ghost" onClick={() => void copy(body)}>
               본문 복사
@@ -543,7 +558,7 @@ export function ReportsPage(): React.JSX.Element {
                   다시 실행
                 </Button>
               </Actions>
-              <textarea
+              <Textarea
                 className="wt-report-editor"
                 aria-label="보고서 내용"
                 rows={20}
@@ -644,62 +659,54 @@ function ArchivalWorkspace(): React.JSX.Element {
               </Button>
             </Actions>
             <label>
-              <input
-                type="checkbox"
-                checked={internal}
-                onChange={(e) => setInternal(e.target.checked)}
-              />{' '}
-              정본 PDF에 상담 기록(비고) 포함
+              <FormCheckbox checked={internal} onCheckedChange={(e) => setInternal(e)} /> 정본 PDF에
+              상담 기록(비고) 포함
             </label>
             {archives.length ? (
-              <table>
-                <thead>
-                  <tr>
-                    <th>
-                      <input
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>
+                      <FormCheckbox
                         aria-label="전체 선택"
-                        type="checkbox"
+
                         checked={!!archives.length && selected.length === archives.length}
-                        onChange={(e) =>
-                          setSelected(e.target.checked ? archives.map((a) => a.id) : [])
-                        }
+                        onCheckedChange={(e) => setSelected(e ? archives.map((a) => a.id) : [])}
                       />
-                    </th>
-                    <th>기록물철</th>
-                    <th>학년도</th>
-                    <th>상태</th>
+                    </TableHead>
+                    <TableHead>기록물철</TableHead>
+                    <TableHead>학년도</TableHead>
+                    <TableHead>상태</TableHead>
                     <th />
-                  </tr>
-                </thead>
-                <tbody>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {archives.map((a) => (
-                    <tr key={a.id}>
-                      <td>
-                        <input
+                    <TableRow key={a.id}>
+                      <TableCell>
+                        <FormCheckbox
                           aria-label={`${a.title} 선택`}
-                          type="checkbox"
+
                           checked={selected.includes(a.id)}
-                          onChange={(e) =>
-                            setSelected((s) =>
-                              e.target.checked ? [...s, a.id] : s.filter((id) => id !== a.id)
-                            )
+                          onCheckedChange={(e) =>
+                            setSelected((s) => (e ? [...s, a.id] : s.filter((id) => id !== a.id)))
                           }
                         />
-                      </td>
-                      <td>{a.title}</td>
-                      <td>{a.year}</td>
-                      <td>
+                      </TableCell>
+                      <TableCell>{a.title}</TableCell>
+                      <TableCell>{a.year}</TableCell>
+                      <TableCell>
                         <Badge tone={a.state === '이관 완료' ? 'green' : 'blue'}>{a.state}</Badge>
-                      </td>
-                      <td>
+                      </TableCell>
+                      <TableCell>
                         <Button variant="ghost" onClick={() => setDetail({ ...a })}>
                           상세 보기
                         </Button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             ) : (
               <Empty
                 title="아직 생성한 기록물철이 없습니다."
@@ -712,10 +719,14 @@ function ArchivalWorkspace(): React.JSX.Element {
       {create && (
         <Modal title="기록물철 생성" onClose={() => setCreate(false)}>
           <Field label="제목">
-            <input value={title} onChange={(e) => setTitle(e.target.value)} />
+            <TextInput value={title} onChange={(e) => setTitle(e.target.value)} />
           </Field>
           <Field label="학년도">
-            <input type="number" value={year} onChange={(e) => setYear(Number(e.target.value))} />
+            <TextInput
+              type="number"
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
+            />
           </Field>
           <p>현재 학교의 해당 학년도 기록을 모읍니다.</p>
           <Actions>
@@ -759,21 +770,21 @@ function ArchivalWorkspace(): React.JSX.Element {
             )}
           />
           <Field label="이관처">
-            <input
+            <TextInput
               value={detail.recipient}
               onChange={(e) => setDetail({ ...detail, recipient: e.target.value })}
               placeholder="학교 행정실 / 교육지원청 기록관"
             />
           </Field>
           <Field label="이관일">
-            <input
+            <DateInput
               type="date"
               value={detail.date}
-              onChange={(e) => setDetail({ ...detail, date: e.target.value })}
+              onValueChange={(e) => setDetail({ ...detail, date: e })}
             />
           </Field>
           <Field label="비고">
-            <textarea
+            <Textarea
               value={detail.memo}
               onChange={(e) => setDetail({ ...detail, memo: e.target.value })}
             />
@@ -953,36 +964,36 @@ export function SettingsPage(): React.JSX.Element {
         <Panel title="기본 정보">
           <div className="form-grid">
             <Field label="작업학년도">
-              <input readOnly value={data.settings.schoolYear} />
+              <TextInput readOnly value={data.settings.schoolYear} />
             </Field>
             <Field label="상담사 이름">
-              <input
+              <TextInput
                 value={prefs.counselor}
                 onChange={(e) => setPrefs({ ...prefs, counselor: e.target.value })}
               />
             </Field>
             <Field label="상담사 소속">
-              <select
+              <FormSelect
                 value={extra.affiliation}
-                onChange={(e) => setExtra({ ...extra, affiliation: e.target.value })}
+                onValueChange={(e) => setExtra({ ...extra, affiliation: e })}
               >
                 {['학교', 'Wee센터', '교육지원청', '기타'].map((x) => (
                   <option key={x}>{x}</option>
                 ))}
-              </select>
+              </FormSelect>
             </Field>
             <Field label="상담분류 기본값">
-              <select
+              <FormSelect
                 value={extra.classification}
-                onChange={(e) => setExtra({ ...extra, classification: e.target.value })}
+                onValueChange={(e) => setExtra({ ...extra, classification: e })}
               >
                 {CATEGORIES.map((x) => (
                   <option key={x}>{x}</option>
                 ))}
-              </select>
+              </FormSelect>
             </Field>
             <Field label="장기 미접촉 기준일">
-              <input
+              <TextInput
                 type="number"
                 min={1}
                 value={extra.stale}
@@ -990,23 +1001,22 @@ export function SettingsPage(): React.JSX.Element {
               />
             </Field>
             <Field label="자동 잠금">
-              <select
+              <FormSelect
                 value={prefs.autoLock}
-                onChange={(e) => setPrefs({ ...prefs, autoLock: Number(e.target.value) })}
+                onValueChange={(e) => setPrefs({ ...prefs, autoLock: Number(e) })}
               >
                 {[0, 5, 10, 15, 30].map((n) => (
                   <option value={n} key={n}>
                     {n ? `${n}분` : '사용 안 함'}
                   </option>
                 ))}
-              </select>
+              </FormSelect>
             </Field>
           </div>
           <label>
-            <input
-              type="checkbox"
+            <FormCheckbox
               checked={extra.sound}
-              onChange={(e) => setExtra({ ...extra, sound: e.target.checked })}
+              onCheckedChange={(e) => setExtra({ ...extra, sound: e })}
             />{' '}
             알림음
           </label>
@@ -1106,21 +1116,21 @@ export function SettingsPage(): React.JSX.Element {
             {active?.name} · 시작 시각 또는 종료 시각을 바꾸면 다음 교시도 간격을 유지하며
             이동합니다.
           </p>
-          <table>
-            <thead>
-              <tr>
-                <th>교시</th>
-                <th>시작</th>
-                <th>종료</th>
-                <th>소요</th>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>교시</TableHead>
+                <TableHead>시작</TableHead>
+                <TableHead>종료</TableHead>
+                <TableHead>소요</TableHead>
                 <th />
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {prefs.timetable.map((t, i) => (
-                <tr key={i}>
-                  <td>
-                    <input
+                <TableRow key={i}>
+                  <TableCell>
+                    <TextInput
                       aria-label={`${i + 1}행 교시`}
                       value={t.name}
                       onChange={(e) =>
@@ -1132,32 +1142,32 @@ export function SettingsPage(): React.JSX.Element {
                         })
                       }
                     />
-                  </td>
-                  <td>
-                    <input
+                  </TableCell>
+                  <TableCell>
+                    <TextInput
                       aria-label={`${i + 1}행 시작`}
                       type="time"
                       value={t.start}
                       onChange={(e) => changeTime(i, 'start', e.target.value)}
                     />
-                  </td>
-                  <td>
-                    <input
+                  </TableCell>
+                  <TableCell>
+                    <TextInput
                       aria-label={`${i + 1}행 종료`}
                       type="time"
                       value={t.end}
                       onChange={(e) => changeTime(i, 'end', e.target.value)}
                     />
-                  </td>
-                  <td>
+                  </TableCell>
+                  <TableCell>
                     {Math.round(
                       (new Date(`2026-01-01T${t.end}`).getTime() -
                         new Date(`2026-01-01T${t.start}`).getTime()) /
                         60000
                     )}
                     분
-                  </td>
-                  <td>
+                  </TableCell>
+                  <TableCell>
                     <Button
                       variant="ghost"
                       onClick={() =>
@@ -1166,11 +1176,11 @@ export function SettingsPage(): React.JSX.Element {
                     >
                       삭제
                     </Button>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
           <Actions>
             <Button
               variant="secondary"
@@ -1215,7 +1225,7 @@ export function SettingsPage(): React.JSX.Element {
             <div className="form-grid">
               {(['current', 'next', 'confirm'] as const).map((key, i) => (
                 <Field key={key} label={['현재 PIN', '새 PIN', '새 PIN 확인'][i]}>
-                  <input
+                  <TextInput
                     type="password"
                     inputMode="numeric"
                     maxLength={4}
@@ -1258,7 +1268,7 @@ export function SettingsPage(): React.JSX.Element {
               <>
                 <code className="wt-code">{recovery}</code>
                 <Field label="복구 코드 확인">
-                  <input value={verify} onChange={(e) => setVerify(e.target.value)} />
+                  <TextInput value={verify} onChange={(e) => setVerify(e.target.value)} />
                 </Field>
                 <Button
                   variant="secondary"
@@ -1317,44 +1327,43 @@ export function SettingsPage(): React.JSX.Element {
         <Panel title="자동 백업">
           <p>설정 화면만 제공합니다. 백그라운드 백업은 실행되지 않습니다.</p>
           <label>
-            <input
-              type="checkbox"
+            <FormCheckbox
               checked={prefs.autoBackup}
-              onChange={(e) => setPrefs({ ...prefs, autoBackup: e.target.checked })}
+              onCheckedChange={(e) => setPrefs({ ...prefs, autoBackup: e })}
             />{' '}
             자동 백업 사용
           </label>
           <div className="form-grid">
             <Field label="저장 폴더">
-              <input
+              <TextInput
                 value={extra.folder}
                 onChange={(e) => setExtra({ ...extra, folder: e.target.value })}
               />
             </Field>
             <Field label="주기">
-              <select
+              <FormSelect
                 value={extra.interval}
-                onChange={(e) => setExtra({ ...extra, interval: e.target.value })}
+                onValueChange={(e) => setExtra({ ...extra, interval: e })}
               >
                 {['매일', '일주일마다', '2주마다', '한 달마다'].map((x) => (
                   <option key={x}>{x}</option>
                 ))}
-              </select>
+              </FormSelect>
             </Field>
             <Field label="남길 개수">
-              <select
+              <FormSelect
                 value={prefs.backupRetention}
-                onChange={(e) => setPrefs({ ...prefs, backupRetention: Number(e.target.value) })}
+                onValueChange={(e) => setPrefs({ ...prefs, backupRetention: Number(e) })}
               >
                 {[5, 10, 20, 30].map((n) => (
                   <option key={n} value={n}>
                     최근 {n}개
                   </option>
                 ))}
-              </select>
+              </FormSelect>
             </Field>
             <Field label="확인 시각">
-              <input
+              <TextInput
                 type="time"
                 value={prefs.backupTime}
                 onChange={(e) => setPrefs({ ...prefs, backupTime: e.target.value })}
@@ -1411,7 +1420,7 @@ export function SettingsPage(): React.JSX.Element {
         <Panel title="문서 저장 폴더">
           <p>앱에서 만든 정본 PDF·동의서·엑셀을 모아 두는 위치입니다.</p>
           <Field label="폴더 경로 (예시)">
-            <input
+            <TextInput
               value={prefs.documentFolder}
               onChange={(e) => setPrefs({ ...prefs, documentFolder: e.target.value })}
             />
@@ -1450,33 +1459,33 @@ export function SettingsPage(): React.JSX.Element {
           onClose={() => setSchool(null)}
         >
           <Field label="학교명">
-            <input
+            <TextInput
               value={school.name}
               onChange={(e) => setSchool({ ...school, name: e.target.value })}
             />
           </Field>
           <Field label="학교급">
-            <select
+            <FormSelect
               value={school.type}
-              onChange={(e) => setSchool({ ...school, type: e.target.value })}
+              onValueChange={(e) => setSchool({ ...school, type: e })}
             >
               {['초등학교', '중학교', '고등학교', '특수학교', '기타'].map((x) => (
                 <option key={x}>{x}</option>
               ))}
-            </select>
+            </FormSelect>
           </Field>
           <Field label="Wee설치여부">
-            <select
+            <FormSelect
               value={school.weeClass}
-              onChange={(e) => setSchool({ ...school, weeClass: e.target.value })}
+              onValueChange={(e) => setSchool({ ...school, weeClass: e })}
             >
               <option>Wee클래스</option>
               <option>Wee센터</option>
               <option>일반</option>
-            </select>
+            </FormSelect>
           </Field>
           <Field label="상담실 전화번호">
-            <input
+            <TextInput
               value={school.phone}
               onChange={(e) => setSchool({ ...school, phone: e.target.value })}
             />
@@ -1507,7 +1516,7 @@ export function SettingsPage(): React.JSX.Element {
         <Modal title="화면 잠금 미리보기" onClose={() => setLocked(false)}>
           <p>실제 보안 잠금이 아닌 화면 미리보기입니다.</p>
           <Field label="PIN">
-            <input
+            <TextInput
               type="password"
               maxLength={4}
               value={verify}
@@ -1552,7 +1561,7 @@ export function SettingsPage(): React.JSX.Element {
           {modal === 'login' ? (
             <>
               <Field label="이메일">
-                <input
+                <TextInput
                   type="email"
                   value={account.email}
                   onChange={(e) => setAccount({ ...account, email: e.target.value })}
@@ -1562,7 +1571,7 @@ export function SettingsPage(): React.JSX.Element {
                 <>
                   <p>실제 메일은 보내지 않았습니다. 체험 코드: 123456</p>
                   <Field label="인증번호">
-                    <input
+                    <TextInput
                       value={account.otp}
                       onChange={(e) => setAccount({ ...account, otp: e.target.value })}
                     />
@@ -1596,7 +1605,7 @@ export function SettingsPage(): React.JSX.Element {
           ) : modal === 'redeem' ? (
             <>
               <Field label="구독 코드">
-                <input
+                <TextInput
                   value={account.code}
                   onChange={(e) => setAccount({ ...account, code: e.target.value })}
                 />
@@ -1754,13 +1763,15 @@ export function NoticesPage(): React.JSX.Element {
         </Button>
       </PageHeading>
       <Tabs items={['전체', '안내', '주의', '업데이트']} value={filter} onChange={setFilter} />
-      <Field label="공지 검색">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="제목 또는 내용 검색"
-        />
-      </Field>
+      <div className="mb-6 max-w-xl">
+        <Field label="공지 검색">
+          <TextInput
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="제목 또는 내용 검색"
+          />
+        </Field>
+      </div>
       {rows.length ? (
         rows.map((n) => (
           <Panel key={n.id} title={n.title}>

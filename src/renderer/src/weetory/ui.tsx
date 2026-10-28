@@ -1,3 +1,10 @@
+import { Tabs as RadixTabs, TabsList, TabsTrigger } from '../components/ui/tabs'
+import { Card } from '../components/ui/card'
+import { cn } from '../lib/utils'
+import type { ComponentProps } from 'react'
+export function Surface({ className, ...props }: ComponentProps<typeof Card>): React.JSX.Element {
+  return <Card className={cn('block gap-0 p-6 shadow-none', className)} {...props} />
+}
 import { ArrowLeft, ChevronRight } from 'lucide-react'
 import type { ReactNode } from 'react'
 export { Button, Field, Modal, Empty, PageHeading, SectionHeading, Badge } from '../components/ui'
@@ -13,18 +20,22 @@ export function Tabs({
   label?: string
 }): React.JSX.Element {
   return (
-    <nav className="wt-tabs" aria-label={label}>
-      {items.map((item) => (
-        <button
-          key={item}
-          className={value === item ? 'active' : ''}
-          aria-current={value === item ? 'page' : undefined}
-          onClick={() => onChange(item)}
-        >
-          {item}
-        </button>
-      ))}
-    </nav>
+    <RadixTabs value={value} onValueChange={onChange} className="mb-6 min-w-0">
+      <TabsList
+        aria-label={label}
+        className="h-auto group-data-[orientation=horizontal]/tabs:h-auto max-w-full justify-start gap-1 overflow-x-auto overflow-y-hidden rounded-none border-b bg-transparent p-0 pb-2"
+      >
+        {items.map((item) => (
+          <TabsTrigger
+            key={item}
+            value={item}
+            className="h-10 shrink-0 rounded-lg px-4 text-[13px] text-muted-foreground shadow-none data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-none"
+          >
+            {item}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </RadixTabs>
   )
 }
 export function Back({

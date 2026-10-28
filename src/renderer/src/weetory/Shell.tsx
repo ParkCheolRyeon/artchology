@@ -1,3 +1,5 @@
+import { Input as TextInput } from '../components/ui/input'
+import { FormSelect } from '../components/form-controls'
 import { useEffect, useState } from 'react'
 import {
   House,
@@ -26,7 +28,6 @@ import { HomePage } from './Home'
 import { CasesPage } from './Cases'
 import { StudentsPage } from './Students'
 import { StatisticsPage, ReportsPage, SettingsPage, NoticesPage } from './WorkspacePages'
-import './weetory.css'
 
 const MENU = [
   { key: 'home', label: '홈', path: '/', icon: House },
@@ -350,12 +351,12 @@ function ShellBody({
               <Plus size={16} />
             </button>
           </div>
-          <select
+          <FormSelect
             className="wt-school-select"
             aria-label="현재 학교"
             value={data.activeSchoolId}
-            onChange={(event) => {
-              setData((prev) => ({ ...prev, activeSchoolId: event.target.value }))
+            onValueChange={(event) => {
+              setData((prev) => ({ ...prev, activeSchoolId: event }))
               navigate('/')
             }}
           >
@@ -366,7 +367,7 @@ function ShellBody({
                   {s.name}
                 </option>
               ))}
-          </select>
+          </FormSelect>
           <button
             className="icon-button"
             aria-label="화면 잠금"
@@ -386,7 +387,7 @@ function ShellBody({
           </span>
           <div className="wt-search">
             <Search size={15} />
-            <input
+            <TextInput
               aria-label="전체 학생 검색"
               placeholder="학생 빠르게 찾기"
               value={query}
@@ -472,7 +473,7 @@ function ShellBody({
           >
             {data.settings.pin && (
               <Field label="PIN">
-                <input
+                <TextInput
                   type="password"
                   inputMode="numeric"
                   maxLength={4}

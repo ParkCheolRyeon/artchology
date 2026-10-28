@@ -1,3 +1,15 @@
+import { Surface } from './ui'
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell
+} from '../components/ui/table'
+import { Input as TextInput } from '../components/ui/input'
+import { Textarea } from '../components/ui/textarea'
+import { DateInput, FormSelect, FormCheckbox } from '../components/form-controls'
 import { useState } from 'react'
 import { Plus, FileText, ArrowRight, Download, Settings, Pencil } from 'lucide-react'
 import { useWorkspace } from './context'
@@ -29,12 +41,16 @@ function Input({
 }): React.JSX.Element {
   return (
     <Field label={label}>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        required={required}
-      />
+      {type === 'date' || type === 'datetime-local' ? (
+        <DateInput type={type} value={value} onValueChange={onChange} required={required} />
+      ) : (
+        <TextInput
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          required={required}
+        />
+      )}
     </Field>
   )
 }
@@ -51,11 +67,11 @@ function Select({
 }): React.JSX.Element {
   return (
     <Field label={label}>
-      <select value={value} onChange={(e) => onChange(e.target.value)}>
+      <FormSelect value={value} onValueChange={(e) => onChange(e)}>
         {options.map((x) => (
           <option key={x}>{x}</option>
         ))}
-      </select>
+      </FormSelect>
     </Field>
   )
 }
@@ -72,7 +88,7 @@ function Text({
 }): React.JSX.Element {
   return (
     <Field label={label} full>
-      <textarea rows={rows} value={value} onChange={(e) => onChange(e.target.value)} />
+      <Textarea rows={rows} value={value} onChange={(e) => onChange(e.target.value)} />
     </Field>
   )
 }
@@ -128,15 +144,25 @@ function CaseList(): React.JSX.Element {
       <DemoNotice />
       <div className="wt-grid">
         {['전체', '진행', '종결'].map((x) => (
-          <button className="surface wt-kpi" key={x} onClick={() => setStatus(x)}>
-            <span>{x === '전체' ? '전체 사례' : x + ' 사례'}</span>
-            <strong>{scoped.filter((c) => x === '전체' || c.status === x).length}</strong>
+          <button
+            className="rounded-xl border bg-card p-5 text-left transition-colors hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-ring"
+            aria-pressed={status === x}
+            key={x}
+            onClick={() => setStatus(x)}
+          >
+            <span className="block text-[13px] font-medium text-muted-foreground">
+              {x === '전체' ? '전체 사례' : x + ' 사례'}
+            </span>
+            <strong className="mt-3 block text-[28px] font-semibold leading-none tracking-tight tabular-nums">
+              {scoped.filter((c) => x === '전체' || c.status === x).length}
+              <span className="ml-1.5 text-sm font-normal text-muted-foreground">건</span>
+            </strong>
           </button>
         ))}
       </div>
-      <div className="surface wt-toolbar">
+      <div className="grid grid-cols-[minmax(220px,2fr)_repeat(3,minmax(100px,1fr))] items-end gap-4 rounded-xl border bg-card p-5 max-[1050px]:grid-cols-2">
         <Field label="학생 이름·사례번호·주호소 검색">
-          <input
+          <TextInput
             placeholder="학생 이름이나 사례번호를 입력하세요"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -178,7 +204,7 @@ function CaseList(): React.JSX.Element {
         <div className="wt-grid">
           {records.map((c) => (
             <button
-              className="surface wt-card"
+              className="surface wt-card text-left transition-colors hover:border-primary/30"
               key={c.id}
               onClick={() => navigate(`/cases/${c.id}`)}
             >
@@ -198,34 +224,34 @@ function CaseList(): React.JSX.Element {
         </div>
       ) : (
         <div className="surface">
-          <table className="wt-table">
-            <thead>
-              <tr>
-                <th>사례번호</th>
-                <th>학생</th>
-                <th>주호소</th>
-                <th>상태</th>
-                <th>상담</th>
-                <th>열기</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="wt-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead>사례번호</TableHead>
+                <TableHead>학생</TableHead>
+                <TableHead>주호소</TableHead>
+                <TableHead>상태</TableHead>
+                <TableHead>상담</TableHead>
+                <TableHead>열기</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {records.map((c) => (
-                <tr key={c.id}>
-                  <td>{c.number}</td>
-                  <td>{names(c)}</td>
-                  <td>{c.complaint}</td>
-                  <td>{c.status}</td>
-                  <td>{data.sessions.filter((s) => s.caseId === c.id).length}회</td>
-                  <td>
+                <TableRow key={c.id}>
+                  <TableCell>{c.number}</TableCell>
+                  <TableCell>{names(c)}</TableCell>
+                  <TableCell>{c.complaint}</TableCell>
+                  <TableCell>{c.status}</TableCell>
+                  <TableCell>{data.sessions.filter((s) => s.caseId === c.id).length}회</TableCell>
+                  <TableCell>
                     <Button variant="ghost" onClick={() => navigate(`/cases/${c.id}`)}>
                       상세 보기
                     </Button>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>
@@ -304,14 +330,14 @@ function CaseForm({ record }: { record?: CaseRecord }): React.JSX.Element {
         subtitle="내담자와 상담의 시작점을 기록합니다."
       />
       <form className="wt-stack" onSubmit={submit}>
-        <section className="surface wt-section">
+        <Surface className="surface wt-section">
           <h2>내담자·보호자 정보</h2>
           <div className="form-grid">
             <Field label="학년도">
-              <input value={`${form.year}학년도`} disabled />
+              <TextInput value={`${form.year}학년도`} disabled />
             </Field>
             <Field label="사례번호">
-              <input
+              <TextInput
                 value={form.number}
                 required
                 maxLength={100}
@@ -329,13 +355,12 @@ function CaseForm({ record }: { record?: CaseRecord }): React.JSX.Element {
                 const enrollment = s.enrollments.find((e) => e.year === form.year)
                 return (
                   <label className="wt-choice" key={s.id}>
-                    <input
-                      type="checkbox"
+                    <FormCheckbox
                       checked={form.studentIds.includes(s.id)}
-                      onChange={(e) =>
+                      onCheckedChange={(e) =>
                         setForm((f) => ({
                           ...f,
-                          studentIds: e.target.checked
+                          studentIds: e
                             ? [...f.studentIds, s.id]
                             : f.studentIds.filter((id) => id !== s.id)
                         }))
@@ -357,8 +382,8 @@ function CaseForm({ record }: { record?: CaseRecord }): React.JSX.Element {
           <Button type="button" variant="ghost" onClick={() => navigate('/students')}>
             학생 관리에서 학생 등록·보호자 정보 수정
           </Button>
-        </section>
-        <section className="surface wt-section">
+        </Surface>
+        <Surface className="surface wt-section">
           <h2>의뢰 정보</h2>
           <div className="form-grid">
             <Input
@@ -379,8 +404,8 @@ function CaseForm({ record }: { record?: CaseRecord }): React.JSX.Element {
               type="tel"
             />
           </div>
-        </section>
-        <section className="surface wt-section">
+        </Surface>
+        <Surface className="surface wt-section">
           <h2>상담 정보</h2>
           <Text label="주호소 *" value={form.complaint} onChange={(v) => patch('complaint', v)} />
           <Text label="상담목표" value={form.goal} onChange={(v) => patch('goal', v)} />
@@ -394,7 +419,7 @@ function CaseForm({ record }: { record?: CaseRecord }): React.JSX.Element {
             value={form.notes}
             onChange={(v) => patch('notes', v)}
           />
-        </section>
+        </Surface>
         {error && <p role="alert">{error}</p>}
         <div className="wt-actions">
           <Button type="button" variant="secondary" onClick={cancel}>
@@ -479,7 +504,7 @@ function CaseDetail({ record }: { record: CaseRecord }): React.JSX.Element {
       <Tabs items={detailTabs} value={tab} onChange={setTab} />
       {tab === '개요' && (
         <>
-          <section className="surface wt-section">
+          <Surface className="surface wt-section">
             <h2>내담자·보호자 정보</h2>
             <div className="wt-grid">
               {people.map((p) => {
@@ -501,8 +526,8 @@ function CaseDetail({ record }: { record: CaseRecord }): React.JSX.Element {
                 )
               })}
             </div>
-          </section>
-          <section className="surface wt-section">
+          </Surface>
+          <Surface className="surface wt-section">
             <h2>사례 정보</h2>
             {[
               ['주호소', record.complaint],
@@ -520,47 +545,47 @@ function CaseDetail({ record }: { record: CaseRecord }): React.JSX.Element {
               {record.referrer || '미입력'} · {record.referrerRole} ·{' '}
               {record.referrerContact || '연락처 미입력'}
             </p>
-          </section>
+          </Surface>
         </>
       )}
       {tab === '사례 개념화' && <Concepts record={record} />}{' '}
       {tab === '상담 기록' && (
-        <section className="surface wt-section">
+        <Surface className="surface wt-section">
           <h2>상담 기록 ({sessions.length})</h2>
           {sessions.length ? (
-            <table className="wt-table">
-              <thead>
-                <tr>
-                  <th>회차</th>
-                  <th>일시</th>
-                  <th>분류</th>
-                  <th>나이스 상담제목</th>
-                  <th>상태</th>
-                  <th>상세</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="wt-table">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>회차</TableHead>
+                  <TableHead>일시</TableHead>
+                  <TableHead>분류</TableHead>
+                  <TableHead>나이스 상담제목</TableHead>
+                  <TableHead>상태</TableHead>
+                  <TableHead>상세</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {sessions.map((s, i) => (
-                  <tr key={s.id}>
-                    <td>{sessions.length - i}회</td>
-                    <td>{s.start.replace('T', ' ')}</td>
-                    <td>
+                  <TableRow key={s.id}>
+                    <TableCell>{sessions.length - i}회</TableCell>
+                    <TableCell>{s.start.replace('T', ' ')}</TableCell>
+                    <TableCell>
                       {s.category} / {s.categoryMedium}
-                    </td>
-                    <td>{s.neisTitle || '(제목 없음)'}</td>
-                    <td>{s.status}</td>
-                    <td>
+                    </TableCell>
+                    <TableCell>{s.neisTitle || '(제목 없음)'}</TableCell>
+                    <TableCell>{s.status}</TableCell>
+                    <TableCell>
                       <Button
                         variant="ghost"
                         onClick={() => navigate(`/cases/${record.id}/sessions/${s.id}`)}
                       >
                         기록 보기
                       </Button>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           ) : (
             <Empty
               title="아직 상담 기록이 없습니다"
@@ -571,7 +596,7 @@ function CaseDetail({ record }: { record: CaseRecord }): React.JSX.Element {
               }
             />
           )}
-        </section>
+        </Surface>
       )}
       {tab === '동의서' && <Consents record={record} />}{' '}
       {confirm && (
@@ -653,7 +678,10 @@ function Concepts({ record }: { record: CaseRecord }): React.JSX.Element {
       {record.concepts.length ? (
         <div className="wt-grid">
           {record.concepts.map((c) => (
-            <div className="surface wt-card" key={c.id}>
+            <div
+              className="surface wt-card text-left transition-colors hover:border-primary/30"
+              key={c.id}
+            >
               <FileText size={24} />
               <h3>{c.title}</h3>
               <p>
@@ -685,7 +713,7 @@ function Concepts({ record }: { record: CaseRecord }): React.JSX.Element {
           <div className="wt-grid">
             {data.templates.map((t) => (
               <label className="wt-choice" key={t.id}>
-                <input
+                <TextInput
                   type="radio"
                   name="template"
                   checked={templateId === t.id}
@@ -896,7 +924,10 @@ function Consents({ record }: { record: CaseRecord }): React.JSX.Element {
       {record.consents.length ? (
         <div className="wt-grid">
           {record.consents.map((c) => (
-            <div className="surface wt-card" key={c.id}>
+            <div
+              className="surface wt-card text-left transition-colors hover:border-primary/30"
+              key={c.id}
+            >
               <Badge tone="gray">{c.status}</Badge>
               <h3>{c.title}</h3>
               <p>
@@ -925,16 +956,16 @@ function Consents({ record }: { record: CaseRecord }): React.JSX.Element {
             onChange={(v) => setDraft({ ...draft, title: v })}
           />
           <Field label="학생">
-            <select
+            <FormSelect
               value={draft.studentId}
-              onChange={(e) => setDraft({ ...draft, studentId: e.target.value })}
+              onValueChange={(e) => setDraft({ ...draft, studentId: e })}
             >
               {pupils.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
               ))}
-            </select>
+            </FormSelect>
           </Field>
           <Text
             label="동의서 내용"
@@ -983,13 +1014,10 @@ function Consents({ record }: { record: CaseRecord }): React.JSX.Element {
           <h3>동의서 선택 (여러 개 선택 가능)</h3>
           {record.consents.map((c) => (
             <label className="wt-choice" key={c.id}>
-              <input
-                type="checkbox"
+              <FormCheckbox
                 checked={selected.includes(c.id)}
-                onChange={(e) =>
-                  setSelected((v) =>
-                    e.target.checked ? [...v, c.id] : v.filter((id) => id !== c.id)
-                  )
+                onCheckedChange={(e) =>
+                  setSelected((v) => (e ? [...v, c.id] : v.filter((id) => id !== c.id)))
                 }
               />
               {c.title} · {pupils.find((s) => s.id === c.studentId)?.name}
@@ -1127,7 +1155,7 @@ function SessionPage({
         )}
       </PageHeading>
       <form className="wt-stack" onSubmit={save}>
-        <section className="surface wt-section">
+        <Surface className="surface wt-section">
           <h2>참여자</h2>
           <p className="wt-note">참여 학생의 인원·학년·성별이 나이스 엑셀에 반영됩니다.</p>
           {editing && (
@@ -1151,14 +1179,13 @@ function SessionPage({
           <div className="wt-grid">
             {people.map((s) => (
               <label className="wt-choice" key={s.id}>
-                <input
-                  type="checkbox"
+                <FormCheckbox
                   disabled={!editing}
                   checked={draft.studentIds.includes(s.id)}
-                  onChange={(e) =>
+                  onCheckedChange={(e) =>
                     setDraft((d) => ({
                       ...d,
-                      studentIds: e.target.checked
+                      studentIds: e
                         ? [...d.studentIds, s.id]
                         : d.studentIds.filter((id) => id !== s.id)
                     }))
@@ -1171,8 +1198,8 @@ function SessionPage({
           <p>
             참여 {draft.studentIds.length}명 · {computedYear}학년도
           </p>
-        </section>
-        <section className="surface wt-section">
+        </Surface>
+        <Surface className="surface wt-section">
           <h2>상담 분류·조건</h2>
           <fieldset disabled={!editing} className="form-grid">
             <Select
@@ -1243,8 +1270,8 @@ function SessionPage({
               options={['Wee클래스', 'Wee센터', 'Wee스쿨', '미설치']}
             />
           </fieldset>
-        </section>
-        <section className="surface wt-section">
+        </Surface>
+        <Surface className="surface wt-section">
           <h2>일시</h2>
           <fieldset disabled={!editing}>
             <div className="form-grid">
@@ -1261,13 +1288,13 @@ function SessionPage({
                 onChange={(v) => patch('end', v)}
               />
               <Field label="학년도">
-                <input
+                <TextInput
                   value={Number.isFinite(computedYear) ? `${computedYear}학년도` : ''}
                   readOnly
                 />
               </Field>
               <Field label="소요시간">
-                <input value={`${Number.isFinite(duration) ? duration : 0}분`} readOnly />
+                <TextInput value={`${Number.isFinite(duration) ? duration : 0}분`} readOnly />
               </Field>
               <Select
                 label="리마인더"
@@ -1307,8 +1334,8 @@ function SessionPage({
               </div>
             )}
           </fieldset>
-        </section>
-        <section className="surface wt-section">
+        </Surface>
+        <Surface className="surface wt-section">
           <h2>나이스 상담제목·내용</h2>
           <p className="wt-note">
             나이스 업로드용 문구입니다. 저장만으로 나이스에 등록되지는 않습니다. 민감한 상담
@@ -1341,8 +1368,8 @@ function SessionPage({
               분류·참여자에 맞는 기본 문구로 되돌리기
             </Button>
           )}
-        </section>
-        <section className="surface wt-section">
+        </Surface>
+        <Surface className="surface wt-section">
           <Tabs items={['상담 기록', '참고 정보']} value={workspace} onChange={setWorkspace} />
           {workspace === '상담 기록' ? (
             <>
@@ -1364,7 +1391,7 @@ function SessionPage({
               <p>이 화면 PoC에는 AI 정리·음성 인식 기능이 포함되지 않습니다.</p>
             </>
           )}
-        </section>
+        </Surface>
         {error && <p role="alert">{error}</p>}
         {editing && (
           <div className="wt-actions">
@@ -1401,11 +1428,7 @@ function SessionPage({
       {print && (
         <Modal title="상담 기록 인쇄 미리보기" onClose={() => setPrint(false)}>
           <label className="wt-choice">
-            <input
-              type="checkbox"
-              checked={includeNeis}
-              onChange={(e) => setIncludeNeis(e.target.checked)}
-            />
+            <FormCheckbox checked={includeNeis} onCheckedChange={(e) => setIncludeNeis(e)} />
             나이스 상담제목·내용 포함
           </label>
           <article className="wt-preview">
@@ -1539,7 +1562,7 @@ function Numbers(): React.JSX.Element {
       />
       {tab === '사례번호 정리' && (
         <>
-          <section className="surface wt-section">
+          <Surface className="surface wt-section">
             <div className="wt-toolbar">
               <Input label="일괄 번호 접두사" value={prefix} onChange={setPrefix} />
               <Input label="시작 번호" type="number" value={start} onChange={setStart} />
@@ -1566,57 +1589,53 @@ function Numbers(): React.JSX.Element {
                 선택 사례에 채우기
               </Button>
             </div>
-            <table className="wt-table">
-              <thead>
-                <tr>
-                  <th>
-                    <input
+            <Table className="wt-table">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    <FormCheckbox
                       aria-label="모든 사례 선택"
-                      type="checkbox"
+
                       checked={selected.length === records.length && records.length > 0}
-                      onChange={(e) =>
-                        setSelected(e.target.checked ? records.map((c) => c.id) : [])
-                      }
+                      onCheckedChange={(e) => setSelected(e ? records.map((c) => c.id) : [])}
                     />
-                  </th>
-                  <th>학생</th>
-                  <th>현재 번호</th>
-                  <th>변경 번호</th>
-                </tr>
-              </thead>
-              <tbody>
+                  </TableHead>
+                  <TableHead>학생</TableHead>
+                  <TableHead>현재 번호</TableHead>
+                  <TableHead>변경 번호</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {records.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <input
+                  <TableRow key={c.id}>
+                    <TableCell>
+                      <FormCheckbox
                         aria-label={`${c.number} 선택`}
-                        type="checkbox"
+
                         checked={selected.includes(c.id)}
-                        onChange={(e) =>
-                          setSelected((s) =>
-                            e.target.checked ? [...s, c.id] : s.filter((id) => id !== c.id)
-                          )
+                        onCheckedChange={(e) =>
+                          setSelected((s) => (e ? [...s, c.id] : s.filter((id) => id !== c.id)))
                         }
                       />
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell>
                       {data.students
                         .filter((p) => c.studentIds.includes(p.id))
                         .map((p) => p.name)
                         .join(', ')}
-                    </td>
-                    <td>{c.number}</td>
-                    <td>
-                      <input
+                    </TableCell>
+                    <TableCell>{c.number}</TableCell>
+                    <TableCell>
+                      <TextInput
                         aria-label={`${c.number} 변경 번호`}
                         value={edits[c.id] ?? c.number}
                         onChange={(e) => setEdits((s) => ({ ...s, [c.id]: e.target.value }))}
                       />
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
             <div className="wt-actions">
               <Button variant="secondary" onClick={() => setEdits({})}>
                 변경 취소
@@ -1625,11 +1644,11 @@ function Numbers(): React.JSX.Element {
                 {changes.length}개 변경 미리보기
               </Button>
             </div>
-          </section>
+          </Surface>
         </>
       )}
       {tab === '자동 사례번호 설정' && (
-        <section className="surface wt-section">
+        <Surface className="surface wt-section">
           <h2>새 사례의 자동 번호 규칙</h2>
           <p>현재 규칙: {data.numberPattern}</p>
           <div className="form-grid">
@@ -1646,7 +1665,7 @@ function Numbers(): React.JSX.Element {
             다음 번호 미리보기 <strong>{example}</strong>
           </p>
           <label className="wt-choice">
-            <input type="checkbox" checked={retro} onChange={(e) => setRetro(e.target.checked)} />
+            <FormCheckbox checked={retro} onCheckedChange={(e) => setRetro(e)} />
             현재 학년도 기존 사례도 같은 접두사로 바꾸기
           </label>
           <p className="wt-note">
@@ -1670,10 +1689,10 @@ function Numbers(): React.JSX.Element {
           >
             변경 내용 확인
           </Button>
-        </section>
+        </Surface>
       )}
       {tab === '변경 이력' && (
-        <section className="surface wt-section">
+        <Surface className="surface wt-section">
           <div className="wt-toolbar">
             <h2>사례번호 변경 이력</h2>
             <Button
@@ -1701,55 +1720,55 @@ function Numbers(): React.JSX.Element {
             </Button>
           </div>
           {data.numberHistory.length ? (
-            <table className="wt-table">
-              <thead>
-                <tr>
-                  <th>일시</th>
-                  <th>작업</th>
-                  <th>변경 건수</th>
-                  <th>상세</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="wt-table">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>일시</TableHead>
+                  <TableHead>작업</TableHead>
+                  <TableHead>변경 건수</TableHead>
+                  <TableHead>상세</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.numberHistory.map((h) => (
-                  <tr key={h.id}>
-                    <td>{h.date}</td>
-                    <td>{h.description}</td>
-                    <td>{Object.keys(h.after).length}건</td>
-                    <td>
+                  <TableRow key={h.id}>
+                    <TableCell>{h.date}</TableCell>
+                    <TableCell>{h.description}</TableCell>
+                    <TableCell>{Object.keys(h.after).length}건</TableCell>
+                    <TableCell>
                       <Button variant="ghost" onClick={() => setHistoryId(h.id)}>
                         상세 보기
                       </Button>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           ) : (
             <Empty title="아직 번호 변경 이력이 없습니다" />
           )}
-        </section>
+        </Surface>
       )}
       {error && <p role="alert">{error}</p>}
       {preview && (
         <Modal title="사례번호 변경 미리보기" onClose={() => setPreview(false)}>
           {tab === '자동 사례번호 설정' && <p>새 번호 예시: {example}</p>}
-          <table className="wt-table">
-            <thead>
-              <tr>
-                <th>현재 번호</th>
-                <th>변경 번호</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="wt-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead>현재 번호</TableHead>
+                <TableHead>변경 번호</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {changes.map((c) => (
-                <tr key={c.id}>
-                  <td>{c.number}</td>
-                  <td>{edits[c.id]}</td>
-                </tr>
+                <TableRow key={c.id}>
+                  <TableCell>{c.number}</TableCell>
+                  <TableCell>{edits[c.id]}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
           <p>{changes.length}개 기존 사례가 변경됩니다.</p>
           <div className="wt-actions">
             <Button variant="secondary" onClick={() => setPreview(false)}>
@@ -1843,10 +1862,10 @@ function NeisImport(): React.JSX.Element {
         넣어 가져오기 흐름을 체험할 수 있습니다.
       </p>
       {step === 0 && (
-        <section className="surface wt-section">
+        <Surface className="surface wt-section">
           <h2>나이스 상담일지 선택</h2>
           <Field label="엑셀 파일 (선택 미리보기)">
-            <input
+            <TextInput
               type="file"
               accept=".xlsx,.xls"
               onChange={(e) => setFile(e.target.files?.[0]?.name || '')}
@@ -1882,13 +1901,13 @@ function NeisImport(): React.JSX.Element {
           >
             사례 연결
           </Button>
-        </section>
+        </Surface>
       )}
       {step === 1 && (
-        <section className="surface wt-section">
+        <Surface className="surface wt-section">
           <h2>상담 기록을 연결할 사례</h2>
           <Field label="기존 사례">
-            <select value={selectedCase} onChange={(e) => setSelectedCase(e.target.value)}>
+            <FormSelect value={selectedCase} onValueChange={(e) => setSelectedCase(e)}>
               <option value="">사례를 선택하세요</option>
               {records.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -1899,7 +1918,7 @@ function NeisImport(): React.JSX.Element {
                     .join(', ')}
                 </option>
               ))}
-            </select>
+            </FormSelect>
           </Field>
           <p>{rows.length}개 상담 기록을 선택한 사례에 연결합니다.</p>
           <Button variant="secondary" onClick={() => navigate('/cases/new')}>
@@ -1908,29 +1927,29 @@ function NeisImport(): React.JSX.Element {
           <Button disabled={!selectedCase} onClick={() => setStep(2)}>
             내용 검토
           </Button>
-        </section>
+        </Surface>
       )}
       {step === 2 && (
-        <section className="surface wt-section">
+        <Surface className="surface wt-section">
           <h2>가져오기 전 확인</h2>
-          <table className="wt-table">
-            <thead>
-              <tr>
-                <th>상담일자</th>
-                <th>나이스 상담제목</th>
-                <th>나이스 상담내용</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="wt-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead>상담일자</TableHead>
+                <TableHead>나이스 상담제목</TableHead>
+                <TableHead>나이스 상담내용</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((r, i) => (
-                <tr key={i}>
-                  <td>{r.date}</td>
-                  <td>{r.title}</td>
-                  <td>{r.content}</td>
-                </tr>
+                <TableRow key={i}>
+                  <TableCell>{r.date}</TableCell>
+                  <TableCell>{r.title}</TableCell>
+                  <TableCell>{r.content}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
           <p className="wt-note">
             내부 상담 기록은 비워 두며, 붙여 넣은 내용은 나이스 제목·내용에만 저장합니다.
           </p>
@@ -1976,7 +1995,7 @@ function NeisImport(): React.JSX.Element {
               {rows.length}개 기록 가져오기
             </Button>
           </div>
-        </section>
+        </Surface>
       )}
       {error && <p role="alert">{error}</p>}
     </div>

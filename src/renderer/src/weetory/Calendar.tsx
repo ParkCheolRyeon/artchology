@@ -1,3 +1,6 @@
+import { Input as TextInput } from '../components/ui/input'
+import { Textarea } from '../components/ui/textarea'
+import { FormSelect, FormCheckbox, DateInput } from '../components/form-controls'
 import { useMemo, useRef, useState, type FormEvent } from 'react'
 import FullCalendar, { type CalendarRef, type EventApi } from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/react/daygrid'
@@ -117,7 +120,7 @@ export function ScheduleEditor({
       <form onSubmit={save}>
         <div className="form-grid">
           <Field label="일정 제목" full>
-            <input
+            <TextInput
               autoFocus
               required
               maxLength={100}
@@ -127,11 +130,10 @@ export function ScheduleEditor({
             />
           </Field>
           <label className="wt-check field-full">
-            <input
-              type="checkbox"
+            <FormCheckbox
               checked={draft.allDay}
-              onChange={(e) => {
-                const allDay = e.target.checked
+              onCheckedChange={(e) => {
+                const allDay = e
                 setDraft((prev) => ({
                   ...prev,
                   allDay,
@@ -143,32 +145,32 @@ export function ScheduleEditor({
             종일 일정
           </label>
           <Field label="시작 일시">
-            <input
+            <DateInput
               type={draft.allDay ? 'date' : 'datetime-local'}
               required
               value={draft.start}
-              onChange={(e) => change('start', e.target.value)}
+              onValueChange={(e) => change('start', e)}
             />
           </Field>
           <Field label={draft.allDay ? '마지막 날짜 (포함)' : '종료 일시'}>
-            <input
+            <DateInput
               type={draft.allDay ? 'date' : 'datetime-local'}
               required
               value={draft.allDay ? lastDay : draft.end}
-              onChange={(e) => {
-                if (draft.allDay) setLastDay(e.target.value)
+              onValueChange={(e) => {
+                if (draft.allDay) setLastDay(e)
                 else {
-                  change('end', e.target.value)
-                  setLastDay(e.target.value.slice(0, 10))
+                  change('end', e)
+                  setLastDay(e.slice(0, 10))
                 }
               }}
             />
           </Field>
           <Field label="연결 사례">
-            <select
+            <FormSelect
               value={draft.caseId}
-              onChange={(e) => {
-                const row = cases.find((row) => row.id === e.target.value)
+              onValueChange={(e) => {
+                const row = cases.find((row) => row.id === e)
                 setDraft((prev) => ({
                   ...prev,
                   caseId: row?.id ?? '',
@@ -185,36 +187,33 @@ export function ScheduleEditor({
                     .join(', ')}
                 </option>
               ))}
-            </select>
+            </FormSelect>
           </Field>
           <Field label="일정 분류">
-            <select value={draft.category} onChange={(e) => change('category', e.target.value)}>
+            <FormSelect value={draft.category} onValueChange={(e) => change('category', e)}>
               {CATEGORIES.map((value) => (
                 <option key={value}>{value}</option>
               ))}
-            </select>
+            </FormSelect>
           </Field>
           <Field label="장소">
-            <input
+            <TextInput
               value={draft.location}
               onChange={(e) => change('location', e.target.value)}
               placeholder="장소 추가"
             />
           </Field>
           <Field label="미리 알림">
-            <select
-              value={draft.reminder}
-              onChange={(e) => change('reminder', Number(e.target.value))}
-            >
+            <FormSelect value={draft.reminder} onValueChange={(e) => change('reminder', Number(e))}>
               {[0, 5, 10, 15, 30, 60].map((value) => (
                 <option key={value} value={value}>
                   {value ? `${value}분 전` : '없음'}
                 </option>
               ))}
-            </select>
+            </FormSelect>
           </Field>
           <Field label="메모" full>
-            <textarea
+            <Textarea
               rows={3}
               value={draft.internalNotes}
               onChange={(e) => change('internalNotes', e.target.value)}
@@ -394,23 +393,15 @@ export function CalendarWorkspace({ compact = false }: { compact?: boolean }): R
         <label>
           <span className="wt-calendar-dot" />
           나의 상담 일정{' '}
-          <select
-            aria-label="캘린더 분류"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          >
+          <FormSelect aria-label="캘린더 분류" value={filter} onValueChange={(e) => setFilter(e)}>
             <option>전체</option>
             {CATEGORIES.map((value) => (
               <option key={value}>{value}</option>
             ))}
-          </select>
+          </FormSelect>
         </label>
         <label className="wt-check">
-          <input
-            type="checkbox"
-            checked={weekends}
-            onChange={(e) => setWeekends(e.target.checked)}
-          />
+          <FormCheckbox checked={weekends} onCheckedChange={(e) => setWeekends(e)} />
           주말 표시
         </label>
         <span className="wt-muted">{rows.length}개의 일정</span>
