@@ -1,3 +1,4 @@
+import { BrandIcon } from '../components/BrandIcon'
 import { Input as TextInput } from '../components/ui/input'
 import { FormSelect } from '../components/form-controls'
 import { useEffect, useState } from 'react'
@@ -9,7 +10,6 @@ import {
   Files,
   Megaphone,
   Settings,
-  Sprout,
   Plus,
   X,
   PanelLeftClose,
@@ -244,7 +244,7 @@ function ShellBody({
     <div className={`wt-shell ${collapsed ? 'wt-collapsed' : ''}`}>
       <aside className="wt-rail">
         <button className="wt-logo" aria-label="위토리 홈" onClick={() => navigate('/')}>
-          <Sprout size={26} />
+          <BrandIcon size={26} />
         </button>
         <nav aria-label="주 메뉴">
           {MENU.map((item, index) => (
@@ -291,7 +291,7 @@ function ShellBody({
           ))}
         </nav>
         <div className="wt-panel-bottom">
-          <Sprout size={18} />
+          <BrandIcon size={18} />
           <p>
             아이의 이야기가
             <br />
@@ -457,7 +457,7 @@ function ShellBody({
       )}
       {locked && (
         <div className="wt-lock">
-          <Sprout size={38} />
+          <BrandIcon size={38} />
           <h1>상담 공간이 잠겨 있습니다</h1>
           <p>
             {data.settings.pin

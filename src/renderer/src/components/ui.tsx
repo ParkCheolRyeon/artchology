@@ -1,3 +1,4 @@
+import { BrandIcon } from './BrandIcon'
 import { Button as ShadcnButton } from './ui/button'
 import { Badge as ShadcnBadge } from './ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog'
@@ -9,7 +10,7 @@ import {
   type ButtonHTMLAttributes,
   type ReactNode
 } from 'react'
-import { X, ArrowUpRight, Search, Sprout } from 'lucide-react'
+import { X, ArrowUpRight, Search } from 'lucide-react'
 import type { Student } from '../../../shared/model'
 
 export function Button({
@@ -79,7 +80,7 @@ export function Empty({
 }): React.JSX.Element {
   return (
     <div className="empty">
-      <Sprout size={30} strokeWidth={1.4} />
+      <BrandIcon size={30} />
       <h3>{title}</h3>
       {description && <p>{description}</p>}
       {action}
