@@ -159,14 +159,20 @@ export function HomePage(): React.JSX.Element {
       {(section === 'home-today' || section === 'home-recent') && (
         <Surface className="surface wt-section">
           <SectionHeading title="최근 기록" />
-          {latest.map((row) => (
-            <RowLink key={row.id} onClick={() => openSession(row.id, row.caseId)}>
-              <Clock3 size={17} />
-              <span>{row.start.slice(0, 10)}</span>
-              <strong>{names(row.studentIds)}</strong>
-              <span>{row.title}</span>
-            </RowLink>
-          ))}
+          <div className="wt-record-list">
+            {latest.map((row) => (
+              <RowLink
+                className="wt-record-row"
+                key={row.id}
+                onClick={() => openSession(row.id, row.caseId)}
+              >
+                <Clock3 size={17} />
+                <span>{row.start.slice(0, 10)}</span>
+                <strong>{names(row.studentIds)}</strong>
+                <span>{row.title}</span>
+              </RowLink>
+            ))}
+          </div>
         </Surface>
       )}
       {section === 'home-archival' && (

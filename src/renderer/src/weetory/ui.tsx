@@ -54,13 +54,15 @@ export function Back({
 }
 export function RowLink({
   children,
+  className,
   onClick
 }: {
   children: ReactNode
   onClick: () => void
+  className?: string
 }): React.JSX.Element {
   return (
-    <button className="wt-row-link" onClick={onClick}>
+    <button className={cn('wt-row-link', className)} onClick={onClick}>
       {children}
       <ChevronRight size={16} />
     </button>
