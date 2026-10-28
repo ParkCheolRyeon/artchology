@@ -212,3 +212,16 @@
     }
   }
 }
+
+@layer components {
+  .wt-form-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    min-width: 0;
+  }
+  .wt-form-fields > * {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+}

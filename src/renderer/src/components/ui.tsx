@@ -199,7 +199,7 @@ export function Modal({
       }}
     >
       <DialogContent
-        className="max-h-[88vh] overflow-y-auto bg-white p-6 sm:max-w-[680px]"
+        className="max-h-[88vh] gap-6 overflow-y-auto bg-white p-6 sm:max-w-[680px]"
         showCloseButton={!busy}
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => {

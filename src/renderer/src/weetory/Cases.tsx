@@ -1273,7 +1273,7 @@ function SessionPage({
         </Surface>
         <Surface className="surface wt-section">
           <h2>일시</h2>
-          <fieldset disabled={!editing}>
+          <fieldset disabled={!editing} className="wt-form-fields">
             <div className="form-grid">
               <Input
                 label="상담 시작 *"
@@ -1341,7 +1341,7 @@ function SessionPage({
             나이스 업로드용 문구입니다. 저장만으로 나이스에 등록되지는 않습니다. 민감한 상담
             기록이나 축어록 전문을 넣지 마세요.
           </p>
-          <fieldset disabled={!editing}>
+          <fieldset disabled={!editing} className="wt-form-fields">
             <Input
               label="상담제목"
               value={draft.neisTitle}
@@ -1376,7 +1376,7 @@ function SessionPage({
               <p className="wt-note">
                 상담의 실제 내용과 다음 회기 계획을 기록합니다. 나이스 엑셀에는 포함되지 않습니다.
               </p>
-              <fieldset disabled={!editing}>
+              <fieldset disabled={!editing} className="wt-form-fields">
                 <Text
                   label="상담 기록 · 내부 기록"
                   rows={10}
