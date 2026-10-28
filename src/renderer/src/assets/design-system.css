@@ -225,3 +225,88 @@
     margin-bottom: 0;
   }
 }
+
+@layer components {
+  .wt-art-studio .studio-intro {
+    background: var(--color-secondary);
+    border-color: var(--color-border);
+  }
+  .wt-art-studio .intro-art span:first-child {
+    background: #b9dcfb;
+  }
+  .wt-art-studio .intro-art span:nth-child(2) {
+    background: #d6eafb;
+  }
+  .wt-art-studio .intro-art span:nth-child(3) {
+    background: #89c3f5;
+  }
+  .wt-art-studio .intro-art span:nth-child(4) {
+    background: #5aa5e5;
+  }
+  .wt-art-studio .activity-card:hover {
+    border-color: var(--color-primary);
+  }
+  .wt-art-studio .activity-card-copy {
+    padding: 24px;
+  }
+  .wt-art-studio .activity-card-copy p {
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .wt-art-studio .activity-start {
+    color: var(--color-primary);
+    font-size: 13px;
+  }
+  .wt-art-studio .studio-workspace {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 24px;
+  }
+  .wt-art-studio .drawing-tools {
+    gap: 10px;
+    padding: 16px;
+  }
+  .wt-art-studio .drawing-tools button {
+    width: 34px;
+    height: 34px;
+  }
+  .wt-art-studio .drawing-tools .color-dot {
+    width: 24px;
+    height: 24px;
+  }
+  .wt-art-studio .drawing-tools .tool-active {
+    background: var(--color-secondary);
+    color: var(--color-primary);
+  }
+  .wt-art-studio .color-dot.chosen {
+    outline-color: var(--color-primary);
+  }
+  .wt-art-studio .activity-notes {
+    padding: 24px;
+  }
+  .wt-art-studio .activity-notes .field {
+    margin-bottom: 24px;
+  }
+  .wt-art-studio .activity-notes p {
+    line-height: 1.7;
+  }
+  .wt-art-studio .canvas-footer {
+    padding: 16px;
+    font-size: 12px;
+  }
+  @media (max-width: 1200px) {
+    .wt-art-studio .studio-workspace {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .wt-art-studio .activity-grid {
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    .wt-art-studio .intro-art {
+      right: 20px;
+      opacity: 0.4;
+    }
+    .wt-art-studio .studio-intro > :not(.intro-art) {
+      position: relative;
+      z-index: 1;
+    }
+  }
+}

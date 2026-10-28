@@ -1,3 +1,5 @@
+import { ArtStudio } from './ArtStudio'
+import { Palette } from 'lucide-react'
 import { Surface } from './ui'
 
 import {
@@ -47,6 +49,7 @@ export function HomePage(): React.JSX.Element {
       .join(', ')
   const openSession = (id: string, caseId: string): void =>
     navigate(caseId ? `/cases/${caseId}/sessions/${id}` : '/#home-calendar')
+  if (section === 'home-art') return <ArtStudio key={data.activeSchoolId} />
   if (section === 'home-calendar')
     return (
       <>
@@ -74,6 +77,26 @@ export function HomePage(): React.JSX.Element {
           </Button>
         </PageHeading>
       </div>
+      {section === 'home-today' && (
+        <Surface className="wt-art-home mb-6 flex flex-wrap items-center justify-between gap-6 border-blue-100 bg-secondary/50">
+          <div className="flex items-center gap-5">
+            <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-white text-primary">
+              <Palette size={27} />
+            </span>
+            <div>
+              <p className="mb-2 text-xs font-medium text-primary">artbonbon · 마음 그리기</p>
+              <h2 className="text-xl font-semibold">말로 다 못한 마음, 그림으로 만나보세요.</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                아이의 속도에 맞춰 시작하는 작은 표현 활동
+              </p>
+            </div>
+          </div>
+          <Button onClick={() => navigate('/#home-art')}>
+            드로잉 활동 둘러보기
+            <ArrowRight size={16} />
+          </Button>
+        </Surface>
+      )}
       {(section === 'home-today' || section === 'home-cases') && (
         <div className="wt-home-overview">
           <Surface className="surface">

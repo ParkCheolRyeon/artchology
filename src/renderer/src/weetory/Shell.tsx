@@ -38,7 +38,7 @@ const MENU = [
   { key: 'notices', label: '공지사항', path: '/notices', icon: Megaphone },
   { key: 'settings', label: '설정', path: '/settings', icon: Settings }
 ]
-const HOME_IDS = ['today', 'calendar', 'cases', 'stale', 'recent', 'archival']
+const HOME_IDS = ['today', 'calendar', 'cases', 'stale', 'recent', 'archival', 'art']
 const SETTING_IDS = [
   'general',
   'schools',
@@ -57,6 +57,7 @@ function sectionFor(path: string): string {
 }
 function titleFor(path: string): string {
   const section = sectionFor(path)
+  if (path.includes('#home-art')) return '마음 그리기'
   if (path.includes('/sessions/new')) return '새 상담 기록'
   if (path.includes('/sessions/')) return '상담 상세'
   if (path.includes('/numbers/history')) return '사례번호 변경 이력'

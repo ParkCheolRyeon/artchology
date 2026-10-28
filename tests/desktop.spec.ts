@@ -338,3 +338,67 @@ test('공통 UI: 드롭다운·날짜 선택·키보드·모달 안 팝업과 �
     await app.close()
   }
 })
+
+test('마음 그리기: 홈 카드·캔버스·되돌리기·저장·작품 보관함', async () => {
+  const app = await launch()
+  try {
+    const page = await app.firstWindow()
+    await page.getByRole('button', { name: '드로잉 활동 둘러보기' }).click()
+    await expect(page.getByRole('heading', { name: '마음 그리기', exact: true })).toBeVisible()
+    await page.screenshot({
+      animations: 'disabled',
+      path: test.info().outputPath('art-activities.png')
+    })
+    await page.getByRole('button').filter({ hasText: '오늘의 마음 날씨' }).click()
+    await page.getByRole('combobox', { name: '참여 학생 *', exact: true }).click()
+    await page.getByRole('option').filter({ hasText: '김하늘' }).click()
+    const canvas = page.getByLabel('마음 그리기 캔버스')
+    await expect(page.getByRole('listbox')).toHaveCount(0)
+    await canvas.scrollIntoViewIfNeeded()
+    const box = await canvas.boundingBox()
+    const draw = async (): Promise<void> => {
+      await page.mouse.move(box!.x + box!.width * 0.2, box!.y + box!.height * 0.4)
+      await page.mouse.down()
+      await page.mouse.move(box!.x + box!.width * 0.7, box!.y + box!.height * 0.4, { steps: 12 })
+      await page.mouse.up()
+    }
+    const hasPaint = async (): Promise<boolean> =>
+      canvas.evaluate((element: HTMLCanvasElement) => {
+        const pixels = element
+          .getContext('2d')!
+          .getImageData(0, 0, element.width, element.height).data
+        return pixels.some((value, index) => index % 4 !== 3 && value < 240)
+      })
+    await draw()
+    expect(await hasPaint()).toBe(true)
+    await page.getByRole('button', { name: '되돌리기', exact: true }).click()
+    expect(await hasPaint()).toBe(false)
+    await draw()
+    await page.getByRole('button', { name: '그림 지우기', exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: '계속 그리기' }).click()
+    expect(await hasPaint()).toBe(true)
+    await page.getByLabel('학생의 설명과 관찰 메모').fill('오늘은 맑은 하늘 같은 마음이에요.')
+    await page.screenshot({
+      animations: 'disabled',
+      path: test.info().outputPath('art-canvas.png')
+    })
+    await page.getByRole('button', { name: '활동 저장', exact: true }).click()
+    await expect(page.getByText('함께 그린 마음 그림 1점')).toBeVisible()
+    await menu(page, '홈')
+    await sub(page, '마음 그리기')
+    await page.getByRole('tab', { name: '작품 보관함' }).click()
+    await page.getByRole('button').filter({ hasText: '오늘의 마음 날씨' }).click()
+    await expect(
+      page.getByRole('dialog').getByText('오늘은 맑은 하늘 같은 마음이에요.')
+    ).toBeVisible()
+    await page.keyboard.press('Escape')
+    await page.setViewportSize({ width: 980, height: 820 })
+    await page.screenshot({
+      animations: 'disabled',
+      path: test.info().outputPath('art-gallery-980.png')
+    })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  } finally {
+    await app.close()
+  }
+})

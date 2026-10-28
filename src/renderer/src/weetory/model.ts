@@ -1,3 +1,4 @@
+import type { Drawing } from '../../../shared/model'
 export interface School {
   id: string
   name: string
@@ -117,6 +118,7 @@ export interface NumberChange {
   after: Record<string, string>
 }
 export interface WorkspaceData {
+  drawings: (Drawing & { schoolId: string })[]
   students: Pupil[]
   cases: CaseRecord[]
   sessions: Meeting[]
@@ -174,7 +176,8 @@ export const HOME_TABS = [
   '사례 현황',
   '장기 미접촉',
   '최근 기록',
-  '기록물 보관'
+  '기록물 보관',
+  '마음 그리기'
 ] as const
 export function createDemo(): WorkspaceData {
   const today = day(),
@@ -266,6 +269,7 @@ export function createDemo(): WorkspaceData {
     color: '#8e7bc3'
   })
   return {
+    drawings: [],
     students,
     cases,
     sessions,
